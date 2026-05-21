@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Illuminate\Http\Request;
+use Inertia\Middleware;
+
+class HandleInertiaRequests extends Middleware
+{
+    /**
+     * The root template that is loaded on the first page visit.
+     *
+     * @var string
+     */
+    protected $rootView = 'app';
+
+    /**
+     * Determine the current asset version.
+     */
+    public function version(Request $request): string|null
+    {
+        return parent::version($request);
+    }
+
+    /**
+     * Define the props that are shared by default.
+     *
+     * @return array<string, mixed>
+     */
+    public function share(Request $request): array
+    {
+        $path = parse_url(url('/'), PHP_URL_PATH) ?: '';
+        $base = rtrim($path, '/');
+        $adminAppUrl = ($base === '' ? '' : $base).'/admin';
+
+        return array_merge(parent::share($request), [
+            'admin_app_url' => $adminAppUrl,
+            'app_base' => $path,
+            'auth' => [
+                'user' => $request->user(),
+                'role' => fn () => $request->user()?->role?->name,
+                'branch_id' => fn () => $request->user()?->branch_id,
+                'permissions' => fn () => $request->user()?->role?->permissions?->pluck('key')?->values() ?? [],
+                'is_super_admin' => fn () => (bool) $request->user()?->hasRole('super_admin'),
+            ],
+        ]);
+    }
+}

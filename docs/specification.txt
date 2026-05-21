@@ -1,0 +1,434 @@
+1. Project Overview
+System Type
+
+Multi-branch ISP/WiFi Management System
+
+Main Goal
+
+To manage:
+
+WiFi packages
+Customers
+Monthly billing
+Staff & branches
+Notifications/reminders
+SMS communication
+Income & expense tracking
+Voucher printing
+Role permissions
+
+with high performance and easy daily operations.
+
+2. Main Modules
+A. Authentication & Role Management
+Roles
+Super Admin
+
+Full system access.
+
+Can:
+
+Create branches
+Create admins
+View all branches
+System settings
+SMS gateway settings
+Financial overview
+User permissions
+Admin
+
+Branch-level management.
+
+Can:
+
+Manage customers
+Manage staff
+Create invoices
+Manage packages
+View branch dashboard
+Approve billing changes
+Staff / Operator
+
+Limited access.
+
+Can:
+
+Add customer
+Update payment status
+Send SMS
+View assigned branch only
+
+Cannot:
+
+Delete records
+Access system settings
+View other branches
+B. Branch Management
+Features
+Create multiple branches
+Assign users to branches
+Filter all records by branch
+Separate income/expenses per branch
+Example
+Yangon Branch
+Mandalay Branch
+Taunggyi Branch
+C. WiFi Package Management
+Package Fields
+Field	Example
+Package Name	Gold 20Mbps
+Speed	20 Mbps
+Price	35,000 MMK
+Duration	Monthly
+Description	Unlimited usage
+Status	Active/Inactive
+Requirements
+
+✔ Speed-based pricing
+✔ Active/inactive package
+✔ Easy package editing
+✔ Branch-specific packages (optional)
+
+D. Customer Management
+
+This is the core module.
+
+Customer Fields
+Field	Description
+Customer ID	Auto generated
+Customer Name	Full name
+Phone	Contact
+NRC	Optional
+Address	Full address
+GPS Location	Optional
+Branch	Assigned branch
+WiFi Package	Selected package
+Installation Date	Start date
+Billing Date	Monthly due date
+Router SN	Device serial
+Status	Active/Suspended
+Important Features
+Billing Date Change
+
+If customer complains:
+
+Admin can shift billing cycle
+Example:
+Old due date = 5th
+New due date = 15th
+
+System must:
+
+Recalculate next billing
+Preserve payment history
+Customer Status
+Active
+Pending
+Suspended
+Disconnected
+E. Billing & Payment System
+Monthly Billing
+
+Every month system generates:
+
+Due amount
+Due date
+Payment status
+Payment Status
+Status	Meaning
+Paid	Fully paid
+Unpaid	Not paid
+Partial	Some payment
+Overdue	Late payment
+Payment Features
+
+✔ Monthly payment history
+✔ Manual payment entry
+✔ Voucher/receipt print
+✔ Payment note
+✔ Payment method
+✔ Discount support (optional)
+
+F. Reminder & Notification System
+
+This is VERY important for ISP businesses.
+
+Reminder Logic
+
+Example:
+
+Due date = 5th
+Reminder after 3 days late
+
+Then:
+
+On 8th:
+Notification appears to staff/admin dashboard
+Notification Types
+Internal Notifications
+
+Inside software:
+
+“Customer A overdue 5 days”
+SMS Notifications
+
+Automatic SMS:
+
+Before due date
+After overdue
+G. SMS Gateway Integration
+Functions
+Send Single SMS
+
+To one customer.
+
+Bulk SMS
+
+To:
+
+All overdue customers
+All customers in branch
+Selected customers
+SMS Templates
+
+Example:
+
+Dear Customer, your WiFi bill is overdue. Please pay before service interruption.
+
+Gateway Options
+Myanmar Compatible
+Ooredoo Business SMS
+MPT SMS API
+Twilio (international)
+H. Dashboard & Analytics
+Admin Dashboard
+KPI Cards
+Total customers
+Active customers
+Monthly income
+Overdue customers
+Expenses
+New installations
+Charts
+Revenue Analysis
+Daily
+Monthly
+Yearly
+Package Analysis
+Most used package
+Revenue by package
+Branch Analysis
+Revenue per branch
+I. Expense Management
+Expense Fields
+Field	Example
+Expense Name	Fuel
+Amount	50,000
+Branch	Yangon
+Date	Today
+Category	Maintenance
+Categories
+Salary
+Fuel
+Maintenance
+Internet backbone
+Office rent
+J. Voucher / Receipt Printing
+Printable Receipt
+
+Contains:
+
+Customer name
+Package
+Paid amount
+Date
+Staff name
+Branch
+Print Sizes
+A4
+Thermal printer (58mm / 80mm)
+K. Search & Filters
+Filters
+By branch
+By payment status
+By package
+By billing month
+By overdue customers
+3. Recommended Technical Architecture
+Frontend
+Recommended
+React
+Next.js
+
+Why:
+
+Fast
+Tablet responsive
+Modern UI
+Easy dashboard
+Backend
+Recommended
+Node.js + NestJS
+OR
+Laravel
+
+For performance:
+I strongly recommend:
+
+✅ NestJS + PostgreSQL
+
+Reason:
+
+Better scalability
+Strong architecture
+High performance
+Good for multi-branch systems
+Database
+PostgreSQL
+
+Best choice for:
+
+Financial records
+Reporting
+Stability
+Mobile-Friendly UI
+
+Must support:
+
+Desktop
+Tablet
+Mobile browser
+
+Because staff may use tablets in office.
+
+4. Performance Considerations
+
+You specifically mentioned performance.
+
+Important architecture decisions:
+
+Use:
+Pagination
+Indexed database fields
+Lazy loading
+Background jobs for SMS/reminders
+Redis cache (optional)
+5. Suggested Advanced Features (Future)
+
+These can be phase-2 features.
+
+A. Mikrotik Integration
+
+Very valuable for ISPs.
+
+Can:
+
+Suspend internet automatically
+Reactivate after payment
+
+Using:
+
+Mikrotik API
+
+This is highly recommended.
+
+B. Customer Portal
+
+Customers can:
+
+View bills
+Pay online
+Download receipt
+C. Mobile App
+
+For staff field operations.
+
+D. Online Payment
+
+Integrate:
+
+KBZPay
+WavePay
+AyaPay
+6. Suggested Database Structure
+
+Core tables:
+
+users
+roles
+branches
+customers
+wifi_packages
+invoices
+payments
+expenses
+notifications
+sms_logs
+activity_logs
+7. Security Requirements
+
+Very important.
+
+Must Have
+Role permissions
+Audit logs
+Password hashing
+Session timeout
+Backup system
+8. Development Phases
+Phase 1 (MVP)
+
+Core operations:
+
+Login
+Customer management
+Billing
+Package management
+Dashboard
+Role access
+Phase 2
+SMS
+Notifications
+Voucher print
+Expenses
+Phase 3
+Mikrotik integration
+Online payments
+Mobile app
+9. Estimated Complexity
+
+This is a medium-to-large business system.
+
+Estimated Timeline
+Team Size	Estimated Time
+1 full-stack dev	4–6 months
+Small team	2–3 months
+10. My Recommended Final Stack
+Best Overall Stack
+Frontend
+React + Next.js
+TailwindCSS
+Backend
+NestJS
+Database
+PostgreSQL
+Hosting
+VPS Linux Server
+Docker
+SMS
+Twilio / local provider
+Authentication
+JWT + RBAC
+11. Most Important Business Logic
+
+These are the most critical parts:
+
+Monthly billing generation
+Due-date reminder system
+Branch filtering
+Role permissions
+Billing date adjustment
+Accurate payment history
+Fast dashboard reports
+
+These must be designed carefully from the beginning.
