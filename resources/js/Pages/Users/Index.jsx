@@ -1,3 +1,7 @@
+import EmptyState from '@/Components/admin/EmptyState';
+import PageHeader from '@/Components/admin/PageHeader';
+import StatusBadge from '@/Components/admin/StatusBadge';
+import TableCard from '@/Components/admin/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
@@ -11,7 +15,6 @@ import {
     IconButton,
     Menu,
     MenuItem,
-    Paper,
     Stack,
     Table,
     TableBody,
@@ -128,17 +131,25 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
         <AdminLayout title="Users">
             <Head title="Users" />
 
-            <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                            Users
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Manage staff/admin accounts and branch assignment.
-                        </Typography>
-                    </Box>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <Stack spacing={2.25}>
+                <PageHeader
+                    eyebrow="Workspace"
+                    title="Team access"
+                    description="Manage admins and operators with branch assignment, roles, and account status."
+                    actions={
+                        <>
+                            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                                New User
+                            </Button>
+                        </>
+                    }
+                />
+
+                <TableCard
+                    title="User directory"
+                    description={`${rows.length} user accounts with role-based access control.`}
+                    toolbar={
+                        <>
                         <TextField
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
@@ -155,58 +166,62 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                         <Button variant="outlined" onClick={applySearch}>
                             Search
                         </Button>
-                        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                            New User
-                        </Button>
-                    </Stack>
-                </Stack>
-
-                <Paper variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
-                    <Table size="small" sx={{ minWidth: 980 }}>
+                        </>
+                    }
+                >
+                    {rows.length === 0 ? (
+                        <EmptyState
+                            compact
+                            icon={<AddIcon />}
+                            title="No users found"
+                            description="Create staff and admin accounts to start assigning operational responsibilities."
+                            action={{ label: 'Create user', onClick: openCreate }}
+                        />
+                    ) : (
+                        <Table size="small" stickyHeader sx={{ minWidth: 980 }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Branch</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Last Login</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, width: 120 }}>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Email</TableCell>
+                                <TableCell>Phone</TableCell>
+                                <TableCell>Role</TableCell>
+                                <TableCell>Branch</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Last Login</TableCell>
+                                <TableCell align="right" sx={{ width: 72 }}>
                                     Actions
                                 </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            No users found.
+                            {rows.map((u) => (
+                                <TableRow key={u.id} hover>
+                                    <TableCell>
+                                        <Typography sx={{ fontWeight: 760 }}>{u.name}</Typography>
+                                    </TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell>{u.phone || '-'}</TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                                            {roleLabel(u)}
                                         </Typography>
                                     </TableCell>
+                                    <TableCell>{branchLabel(u)}</TableCell>
+                                    <TableCell>
+                                        <StatusBadge status={u.status} />
+                                    </TableCell>
+                                    <TableCell>{u.last_login_at ? String(u.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
+                                    <TableCell align="right">
+                                        <IconButton size="small" onClick={(e) => openActions(e, u)} title="Actions" disabled={u.id === authUserId}>
+                                            <MoreVertIcon fontSize="small" />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
-                            ) : (
-                                rows.map((u) => (
-                                    <TableRow key={u.id} hover>
-                                        <TableCell sx={{ fontWeight: 600 }}>{u.name}</TableCell>
-                                        <TableCell>{u.email}</TableCell>
-                                        <TableCell>{u.phone || '-'}</TableCell>
-                                        <TableCell sx={{ fontFamily: 'monospace' }}>{roleLabel(u)}</TableCell>
-                                        <TableCell>{branchLabel(u)}</TableCell>
-                                        <TableCell sx={{ textTransform: 'capitalize' }}>{u.status}</TableCell>
-                                        <TableCell>{u.last_login_at ? String(u.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" onClick={(e) => openActions(e, u)} title="Actions" disabled={u.id === authUserId}>
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
+                            ))}
                         </TableBody>
                     </Table>
-                </Paper>
+                    )}
+                </TableCard>
             </Stack>
 
             <Menu

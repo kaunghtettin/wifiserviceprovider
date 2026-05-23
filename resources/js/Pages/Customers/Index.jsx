@@ -1,3 +1,8 @@
+import AppSurface from '@/Components/admin/AppSurface';
+import EmptyState from '@/Components/admin/EmptyState';
+import PageHeader from '@/Components/admin/PageHeader';
+import StatusBadge from '@/Components/admin/StatusBadge';
+import TableCard from '@/Components/admin/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
@@ -9,9 +14,9 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
+    InputAdornment,
     Menu,
     MenuItem,
-    Paper,
     Stack,
     Table,
     TableBody,
@@ -23,7 +28,15 @@ import {
     useMediaQuery,
     useTheme,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, MoreVert as MoreVertIcon, Search as SearchIcon } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
+import {
+    Add as AddIcon,
+    Delete as DeleteIcon,
+    Edit as EditIcon,
+    MoreVert as MoreVertIcon,
+    PeopleAltOutlined as PeopleAltOutlinedIcon,
+    Search as SearchIcon,
+} from '@mui/icons-material';
 
 const emptyForm = {
     branch_id: '',
@@ -71,6 +84,21 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
     const rows = useMemo(() => customers || [], [customers]);
     const branchOptions = useMemo(() => branches || [], [branches]);
     const packageOptions = useMemo(() => packages || [], [packages]);
+    const metrics = useMemo(() => {
+        const total = rows.length;
+        const active = rows.filter((customer) => customer.status === 'active').length;
+        const pending = rows.filter((customer) => customer.status === 'pending').length;
+        const attention = rows.filter((customer) =>
+            ['suspended', 'disconnected'].includes(String(customer.status || '').toLowerCase()),
+        ).length;
+
+        return [
+            { label: 'Total subscribers', value: total, helper: 'All customer records in the current workspace.' },
+            { label: 'Active service', value: active, helper: 'Customers currently running in active state.' },
+            { label: 'Pending setup', value: pending, helper: 'Installations or activations still being prepared.' },
+            { label: 'Need attention', value: attention, helper: 'Suspended or disconnected customer accounts.' },
+        ];
+    }, [rows]);
 
     const closeDialog = () => {
         setOpen(false);
@@ -164,6 +192,15 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
         );
     };
 
+    const resetSearch = () => {
+        setQuery('');
+        router.get(
+            `${admin_app_url}/customers`,
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
     const renderPackageLabel = (c) => {
         if (!c?.package) return '-';
         return `${c.package.name} (${c.package.speed_mbps} Mbps)`;
@@ -173,163 +210,218 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
         <AdminLayout title="Customers">
             <Head title="Customers" />
 
-            <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                            Customers
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Manage customer profiles, billing day, and service status.
-                        </Typography>
-                    </Box>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-                        <TextField
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search name, phone, code"
-                            size="small"
-                            sx={{ minWidth: { xs: '100%', sm: 280 } }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') applySearch();
-                            }}
-                            InputProps={{
-                                startAdornment: <SearchIcon fontSize="small" style={{ marginRight: 8, opacity: 0.6 }} />,
-                            }}
-                        />
-                        <Button variant="outlined" onClick={applySearch}>
-                            Search
-                        </Button>
-                        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                            New Customer
-                        </Button>
-                    </Stack>
-                </Stack>
+            <Stack spacing={2.5}>
+                <PageHeader
+                    eyebrow="Subscribers"
+                    title="Customer management"
+                    description="Manage subscriber profiles, assigned packages, billing cycles, and branch visibility from a cleaner operational workspace."
+                    actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New Customer</Button>}
+                />
 
-                {isPhone ? (
-                    <Stack spacing={1.25}>
-                        {rows.length === 0 ? (
-                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    No customers found.
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gap: 1.5,
+                        gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(2, minmax(0, 1fr))',
+                            xl: 'repeat(4, minmax(0, 1fr))',
+                        },
+                    }}
+                >
+                    {metrics.map((metric) => (
+                        <AppSurface key={metric.label} sx={{ p: 2 }}>
+                            <Stack spacing={1}>
+                                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {metric.label}
+                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            width: 34,
+                                            height: 34,
+                                            borderRadius: '10px',
+                                            display: 'grid',
+                                            placeItems: 'center',
+                                            color: 'primary.main',
+                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        }}
+                                    >
+                                        <PeopleAltOutlinedIcon sx={{ fontSize: 18 }} />
+                                    </Box>
+                                </Stack>
+                                <Typography variant="h4" sx={{ fontWeight: 820, letterSpacing: '-0.04em' }}>
+                                    {metric.value}
                                 </Typography>
-                            </Paper>
-                        ) : (
-                            rows.map((c) => (
-                                <Paper key={c.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                                    <Stack spacing={1}>
-                                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {metric.helper}
+                                </Typography>
+                            </Stack>
+                        </AppSurface>
+                    ))}
+                </Box>
+
+                <TableCard
+                    title="Subscriber directory"
+                    description={`${rows.length} customer records available for service operations and billing review.`}
+                    toolbar={
+                        <>
+                            <TextField
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Search name, phone, code"
+                                size="small"
+                                sx={{ minWidth: { xs: '100%', sm: 280 } }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') applySearch();
+                                }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <Button variant="outlined" onClick={applySearch}>
+                                Search
+                            </Button>
+                            {query ? (
+                                <Button variant="text" color="inherit" onClick={resetSearch}>
+                                    Reset
+                                </Button>
+                            ) : null}
+                        </>
+                    }
+                >
+                    {rows.length === 0 ? (
+                        <EmptyState
+                            compact
+                            icon={<PeopleAltOutlinedIcon />}
+                            title="No customers found"
+                            description="Add your first subscriber record to start managing package assignments, billing dates, and service status in one place."
+                            action={{ label: 'Create customer', onClick: openCreate }}
+                        />
+                    ) : isPhone ? (
+                        <Stack spacing={1.25}>
+                            {rows.map((c) => (
+                                <Box
+                                    key={c.id}
+                                    sx={{
+                                        p: 1.75,
+                                        borderRadius: '14px',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        bgcolor: alpha(theme.palette.background.paper, 0.84),
+                                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+                                    }}
+                                >
+                                    <Stack spacing={1.25}>
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                             <Box sx={{ minWidth: 0 }}>
-                                                <Typography sx={{ fontWeight: 800, lineHeight: 1.15 }} noWrap>
+                                                <Typography sx={{ fontWeight: 780, lineHeight: 1.2 }} noWrap>
                                                     {c.name}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
                                                     {c.customer_code || '-'}
                                                 </Typography>
                                             </Box>
-                                            <Box
-                                                sx={{
-                                                    px: 1,
-                                                    py: 0.25,
-                                                    borderRadius: 999,
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 700,
-                                                    textTransform: 'capitalize',
-                                                    bgcolor:
-                                                        c.status === 'active'
-                                                            ? 'rgba(34, 197, 94, 0.12)'
-                                                            : c.status === 'pending'
-                                                              ? 'rgba(245, 158, 11, 0.12)'
-                                                              : c.status === 'suspended'
-                                                                ? 'rgba(239, 68, 68, 0.12)'
-                                                                : 'rgba(148, 163, 184, 0.12)',
-                                                    color:
-                                                        c.status === 'active'
-                                                            ? 'rgb(22, 163, 74)'
-                                                            : c.status === 'pending'
-                                                              ? 'rgb(217, 119, 6)'
-                                                              : c.status === 'suspended'
-                                                                ? 'rgb(220, 38, 38)'
-                                                                : 'text.secondary',
-                                                }}
-                                            >
-                                                {c.status}
+                                            <StatusBadge status={c.status} />
+                                        </Stack>
+
+                                        <Box
+                                            sx={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                                                gap: 1.25,
+                                            }}
+                                        >
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Phone
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                                    {c.phone || '-'}
+                                                </Typography>
                                             </Box>
-                                        </Stack>
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Billing day
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                                    {c.billing_day_of_month || '-'}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ gridColumn: '1 / -1' }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Package
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                                    {renderPackageLabel(c)}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ gridColumn: '1 / -1' }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Branch
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                                    {c.branch?.name || `#${c.branch_id}`}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
 
-                                        <Stack spacing={0.25}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Phone: <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{c.phone}</Box>
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Package: <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{renderPackageLabel(c)}</Box>
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Billing day: <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{c.billing_day_of_month}</Box>
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Branch: <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{c.branch?.name || `#${c.branch_id}`}</Box>
-                                            </Typography>
-                                        </Stack>
-
-                                        <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
+                                        <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
                                             <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
                                                 <MoreVertIcon fontSize="small" />
                                             </IconButton>
                                         </Stack>
                                     </Stack>
-                                </Paper>
-                            ))
-                        )}
-                    </Stack>
-                ) : (
-                    <Paper variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
-                        <Table size="small" sx={{ minWidth: 900 }}>
+                                </Box>
+                            ))}
+                        </Stack>
+                    ) : (
+                        <Table size="small" stickyHeader sx={{ minWidth: 1040 }}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Package</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Billing Day</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Branch</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, width: 120 }}>
+                                    <TableCell>Customer</TableCell>
+                                    <TableCell>Phone</TableCell>
+                                    <TableCell>Package</TableCell>
+                                    <TableCell>Billing Day</TableCell>
+                                    <TableCell>Status</TableCell>
+                                    <TableCell>Branch</TableCell>
+                                    <TableCell>Installation</TableCell>
+                                    <TableCell align="right" sx={{ width: 72 }}>
                                         Actions
                                     </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {rows.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                No customers found.
+                                {rows.map((c) => (
+                                    <TableRow key={c.id} hover>
+                                        <TableCell sx={{ minWidth: 220 }}>
+                                            <Typography sx={{ fontWeight: 760 }}>{c.name}</Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                                {c.customer_code || '-'}
                                             </Typography>
                                         </TableCell>
+                                        <TableCell>{c.phone || '-'}</TableCell>
+                                        <TableCell>{renderPackageLabel(c)}</TableCell>
+                                        <TableCell>{c.billing_day_of_month || '-'}</TableCell>
+                                        <TableCell>
+                                            <StatusBadge status={c.status} />
+                                        </TableCell>
+                                        <TableCell>{c.branch?.name || `#${c.branch_id}`}</TableCell>
+                                        <TableCell>{normalizeDateValue(c.installation_date) || '-'}</TableCell>
+                                        <TableCell align="right">
+                                            <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
+                                        </TableCell>
                                     </TableRow>
-                                ) : (
-                                    rows.map((c) => (
-                                        <TableRow key={c.id} hover>
-                                            <TableCell sx={{ fontFamily: 'monospace' }}>{c.customer_code || '-'}</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>{c.name}</TableCell>
-                                            <TableCell>{c.phone}</TableCell>
-                                            <TableCell>{renderPackageLabel(c)}</TableCell>
-                                            <TableCell>{c.billing_day_of_month}</TableCell>
-                                            <TableCell sx={{ textTransform: 'capitalize' }}>{c.status}</TableCell>
-                                            <TableCell>{c.branch?.name || `#${c.branch_id}`}</TableCell>
-                                            <TableCell align="right">
-                                                <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
-                                                    <MoreVertIcon fontSize="small" />
-                                                </IconButton>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
+                                ))}
                             </TableBody>
                         </Table>
-                    </Paper>
-                )}
+                    )}
+                </TableCard>
             </Stack>
 
             <Menu
@@ -338,7 +430,7 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                 onClose={closeActions}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                PaperProps={{ variant: 'outlined', sx: { borderRadius: 2 } }}
+                PaperProps={{ variant: 'outlined', sx: { borderRadius: '12px' } }}
             >
                 <MenuItem
                     onClick={() => {
@@ -360,12 +452,23 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                 </MenuItem>
             </Menu>
 
-            <Dialog open={open} onClose={closeDialog} fullWidth maxWidth="md" scroll="paper">
+            <Dialog
+                open={open}
+                onClose={closeDialog}
+                fullWidth
+                maxWidth="md"
+                scroll="paper"
+                PaperProps={{ sx: { borderRadius: '16px' } }}
+            >
                 <DialogTitle>{editing ? 'Edit Customer' : 'New Customer'}</DialogTitle>
                 <Box component="form" onSubmit={submit}>
                     <DialogContent>
-                        <Stack spacing={2} sx={{ mt: 0.5 }}>
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                        <Stack spacing={2.25} sx={{ mt: 0.5 }}>
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
+                                    Service setup
+                                </Typography>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                                 {canAssignBranch ? (
                                     <TextField
                                         select
@@ -401,9 +504,14 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                         </MenuItem>
                                     ))}
                                 </TextField>
-                            </Stack>
+                                </Stack>
+                            </Box>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
+                                    Subscriber details
+                                </Typography>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                                 <TextField
                                     label="Customer Name"
                                     value={data.name}
@@ -430,9 +538,14 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                     helperText={errors.nrc}
                                     sx={{ flex: 1 }}
                                 />
-                            </Stack>
+                                </Stack>
+                            </Box>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
+                                    Billing and status
+                                </Typography>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                                 <TextField
                                     select
                                     label="Billing Day"
@@ -483,9 +596,14 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                     <MenuItem value="suspended">Suspended</MenuItem>
                                     <MenuItem value="disconnected">Disconnected</MenuItem>
                                 </TextField>
-                            </Stack>
+                                </Stack>
+                            </Box>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
+                                    Network metadata
+                                </Typography>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                                 <TextField
                                     label="Router SN"
                                     value={data.router_sn}
@@ -510,7 +628,8 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                     helperText={errors.gps_lng}
                                     sx={{ flex: 1 }}
                                 />
-                            </Stack>
+                                </Stack>
+                            </Box>
 
                             <TextField
                                 label="Address"

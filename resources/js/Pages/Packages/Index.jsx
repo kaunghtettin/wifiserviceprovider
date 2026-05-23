@@ -1,3 +1,7 @@
+import EmptyState from '@/Components/admin/EmptyState';
+import PageHeader from '@/Components/admin/PageHeader';
+import StatusBadge from '@/Components/admin/StatusBadge';
+import TableCard from '@/Components/admin/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
@@ -11,7 +15,6 @@ import {
     IconButton,
     Menu,
     MenuItem,
-    Paper,
     Stack,
     Table,
     TableBody,
@@ -122,65 +125,69 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
         <AdminLayout title="Packages">
             <Head title="Packages" />
 
-            <Stack spacing={2}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                            WiFi Packages
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Manage speed-based packages and monthly pricing.
-                        </Typography>
-                    </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                        New Package
-                    </Button>
-                </Stack>
+            <Stack spacing={2.25}>
+                <PageHeader
+                    eyebrow="Workspace"
+                    title="Bandwidth packages"
+                    description="Create premium service plans with speed, pricing, duration, and optional branch scoping."
+                    actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New Package</Button>}
+                />
 
-                <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                    <Table size="small">
+                <TableCard
+                    title="Package catalog"
+                    description={`${rows.length} packages available across global and branch-specific offerings.`}
+                >
+                    {rows.length === 0 ? (
+                        <EmptyState
+                            compact
+                            icon={<AddIcon />}
+                            title="No packages yet"
+                            description="Add your first WiFi package to start assigning plans to subscribers and branches."
+                            action={{ label: 'Create package', onClick: openCreate }}
+                        />
+                    ) : (
+                        <Table size="small" stickyHeader>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Speed</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Price</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Duration</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Branch</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, width: 120 }}>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Speed</TableCell>
+                                <TableCell>Price</TableCell>
+                                <TableCell>Duration</TableCell>
+                                <TableCell>Branch</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell align="right" sx={{ width: 72 }}>
                                     Actions
                                 </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7}>
+                            {rows.map((pkg) => (
+                                <TableRow key={pkg.id} hover>
+                                    <TableCell>
+                                        <Typography sx={{ fontWeight: 760 }}>{pkg.name}</Typography>
+                                    </TableCell>
+                                    <TableCell>{pkg.speed_mbps} Mbps</TableCell>
+                                    <TableCell>{pkg.price}</TableCell>
+                                    <TableCell>{pkg.duration_months} month(s)</TableCell>
+                                    <TableCell>
                                         <Typography variant="body2" color="text.secondary">
-                                            No packages yet.
+                                            {renderBranchName(pkg)}
                                         </Typography>
                                     </TableCell>
+                                    <TableCell>
+                                        <StatusBadge status={pkg.status} />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <IconButton size="small" onClick={(e) => openActions(e, pkg)} title="Actions">
+                                            <MoreVertIcon fontSize="small" />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
-                            ) : (
-                                rows.map((pkg) => (
-                                    <TableRow key={pkg.id} hover>
-                                        <TableCell sx={{ fontWeight: 600 }}>{pkg.name}</TableCell>
-                                        <TableCell>{pkg.speed_mbps} Mbps</TableCell>
-                                        <TableCell>{pkg.price}</TableCell>
-                                        <TableCell>{pkg.duration_months} month(s)</TableCell>
-                                        <TableCell>{renderBranchName(pkg)}</TableCell>
-                                        <TableCell sx={{ textTransform: 'capitalize' }}>{pkg.status}</TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" onClick={(e) => openActions(e, pkg)} title="Actions">
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
+                            ))}
                         </TableBody>
                     </Table>
-                </Paper>
+                    )}
+                </TableCard>
             </Stack>
 
             <Menu

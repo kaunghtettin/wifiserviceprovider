@@ -1,3 +1,6 @@
+import EmptyState from '@/Components/admin/EmptyState';
+import PageHeader from '@/Components/admin/PageHeader';
+import TableCard from '@/Components/admin/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
@@ -119,65 +122,61 @@ export default function RolesIndex({ roles, permissions }) {
         <AdminLayout title="Roles">
             <Head title="Roles" />
 
-            <Stack spacing={2}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                            Roles & Permissions
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Control what each role can access in the system.
-                        </Typography>
-                    </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                        New Role
-                    </Button>
-                </Stack>
+            <Stack spacing={2.25}>
+                <PageHeader
+                    eyebrow="Security"
+                    title="Roles & permissions"
+                    description="Design access policies for every staff type and keep branch operations safely scoped."
+                    actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New Role</Button>}
+                />
 
-                <Paper variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
-                    <Table size="small" sx={{ minWidth: 840 }}>
+                <TableCard
+                    title="RBAC directory"
+                    description={`${rows.length} roles available in the current permission model.`}
+                >
+                    {rows.length === 0 ? (
+                        <EmptyState
+                            compact
+                            icon={<AddIcon />}
+                            title="No roles found"
+                            description="Create a role to begin assigning permission bundles for admins and staff."
+                            action={{ label: 'Create role', onClick: openCreate }}
+                        />
+                    ) : (
+                        <Table size="small" stickyHeader sx={{ minWidth: 840 }}>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Users</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Permissions</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, width: 120 }}>
+                                <TableCell>Role</TableCell>
+                                <TableCell>Description</TableCell>
+                                <TableCell>Users</TableCell>
+                                <TableCell>Permissions</TableCell>
+                                <TableCell align="right" sx={{ width: 72 }}>
                                     Actions
                                 </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            No roles found.
+                            {rows.map((role) => (
+                                <TableRow key={role.id} hover>
+                                    <TableCell sx={{ fontWeight: 700, fontFamily: 'monospace' }}>{role.name}</TableCell>
+                                    <TableCell sx={{ maxWidth: 520 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            {role.description || '-'}
                                         </Typography>
                                     </TableCell>
+                                    <TableCell>{role.users_count ?? 0}</TableCell>
+                                    <TableCell>{Array.isArray(role.permission_keys) ? role.permission_keys.length : 0}</TableCell>
+                                    <TableCell align="right">
+                                        <IconButton size="small" onClick={(e) => openActions(e, role)} title="Actions">
+                                            <MoreVertIcon fontSize="small" />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
-                            ) : (
-                                rows.map((role) => (
-                                    <TableRow key={role.id} hover>
-                                        <TableCell sx={{ fontWeight: 700, fontFamily: 'monospace' }}>{role.name}</TableCell>
-                                        <TableCell sx={{ maxWidth: 520 }}>
-                                            <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                                {role.description || '-'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>{role.users_count ?? 0}</TableCell>
-                                        <TableCell>{Array.isArray(role.permission_keys) ? role.permission_keys.length : 0}</TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" onClick={(e) => openActions(e, role)} title="Actions">
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
+                            ))}
                         </TableBody>
                     </Table>
-                </Paper>
+                    )}
+                </TableCard>
             </Stack>
 
             <Menu

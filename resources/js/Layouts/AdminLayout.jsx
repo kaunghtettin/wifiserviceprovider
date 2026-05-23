@@ -3,11 +3,13 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     AppBar,
     Avatar,
+    Badge,
     Box,
     CssBaseline,
     Divider,
     Drawer,
     IconButton,
+    InputAdornment,
     List,
     ListItem,
     ListItemButton,
@@ -16,10 +18,12 @@ import {
     Menu,
     MenuItem,
     Stack,
+    TextField,
     ThemeProvider,
     Toolbar,
+    Tooltip,
     Typography,
-    createTheme,
+    alpha,
     useMediaQuery,
 } from '@mui/material';
 import {
@@ -27,24 +31,33 @@ import {
     AutoAwesomeMosaic as UiShowcaseIcon,
     AccountBalanceWallet as ExpenseIcon,
     Business as BusinessIcon,
+    ChevronRight as ChevronRightIcon,
     Dashboard as DashboardIcon,
     DarkMode as DarkModeIcon,
     LightMode as LightModeIcon,
     Logout as LogoutIcon,
     ManageAccounts as UsersIcon,
     Menu as MenuIcon,
+    NotificationsOutlined as NotificationsIcon,
+    Paid as PaymentsIcon,
     People as CustomersIcon,
     Person as PersonIcon,
     ReceiptLong as InvoicesIcon,
+    Search as SearchIcon,
     Shield as RolesIcon,
     Sms as SmsIcon,
-    Notifications as NotificationsIcon,
     Wifi as PackagesIcon,
     Insights as ReportsIcon,
-    Paid as PaymentsIcon,
 } from '@mui/icons-material';
+import { getAdminTheme } from '@/theme/adminTheme';
 
-const drawerWidth = 220;
+const expandedWidth = 264;
+const collapsedWidth = 78;
+
+const formatLabel = (value) =>
+    String(value || '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const { url, props } = usePage();
@@ -62,71 +75,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
         return window.localStorage.getItem('admin-color-mode') === 'dark';
     });
 
-    const theme = useMemo(
-        () =>
-            createTheme({
-                palette: {
-                    mode: dark ? 'dark' : 'light',
-                    primary: { main: '#3b82f6' },
-                    background: {
-                        default: dark ? '#0f172a' : '#f3f4f6',
-                        paper: dark ? '#111827' : '#ffffff',
-                    },
-                },
-                shape: { borderRadius: 8 },
-                components: {
-                    MuiPaper: {
-                        defaultProps: {
-                            elevation: 0,
-                            variant: 'outlined',
-                        },
-                        styleOverrides: {
-                            root: {
-                                borderColor: dark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(15, 23, 42, 0.1)',
-                            },
-                        },
-                    },
-                    MuiCard: {
-                        defaultProps: {
-                            elevation: 0,
-                            variant: 'outlined',
-                        },
-                        styleOverrides: {
-                            root: {
-                                borderColor: dark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(15, 23, 42, 0.1)',
-                            },
-                        },
-                    },
-                    MuiTextField: {
-                        defaultProps: {
-                            size: 'small',
-                        },
-                    },
-                    MuiOutlinedInput: {
-                        styleOverrides: {
-                            root: {
-                                borderRadius: 10,
-                            },
-                        },
-                    },
-                    MuiButton: {
-                        defaultProps: {
-                            size: 'small',
-                            disableElevation: true,
-                        },
-                        styleOverrides: {
-                            root: {
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                borderRadius: 10,
-                            },
-                        },
-                    },
-                },
-            }),
-        [dark],
-    );
-
+    const theme = useMemo(() => getAdminTheme(dark ? 'dark' : 'light'), [dark]);
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     const toggleTheme = () => {
@@ -136,6 +85,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
             return next;
         });
     };
+
     const toggleNavigation = () => {
         if (isMobile) {
             setMobileOpen((prev) => !prev);
@@ -148,54 +98,51 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
     const navGroups = [
         {
-            title: 'Main',
+            title: 'Overview',
             items: [
-                { label: 'Dashboard', href: `${adminAppUrl}/dashboard`, icon: <DashboardIcon /> },
-                ...(can('dashboard.view') ? [{ label: 'Reports', href: `${adminAppUrl}/reports`, icon: <ReportsIcon /> }] : []),
+                { label: 'Dashboard', href: `${adminAppUrl}/dashboard`, icon: <DashboardIcon fontSize="small" /> },
+                ...(can('dashboard.view') ? [{ label: 'Reports', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> }] : []),
             ],
         },
         {
-            title: 'Management',
+            title: 'Workspace',
             items: [
-                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon /> }] : []),
-                ...(can('customers.manage') ? [{ label: 'Customers', href: `${adminAppUrl}/customers`, icon: <CustomersIcon /> }] : []),
-                ...(can('packages.manage') ? [{ label: 'Packages', href: `${adminAppUrl}/packages`, icon: <PackagesIcon /> }] : []),
-                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon /> }] : []),
-            ],
-        },
-        {
-            title: 'Billing',
-            items: [
-                ...(can('invoices.manage') ? [{ label: 'Invoices', href: `${adminAppUrl}/invoices`, icon: <InvoicesIcon /> }] : []),
-                ...(can('payments.manage') ? [{ label: 'Payments', href: `${adminAppUrl}/payments`, icon: <PaymentsIcon /> }] : []),
+                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon fontSize="small" /> }] : []),
+                ...(can('customers.manage') ? [{ label: 'Customers', href: `${adminAppUrl}/customers`, icon: <CustomersIcon fontSize="small" /> }] : []),
+                ...(can('packages.manage') ? [{ label: 'Packages', href: `${adminAppUrl}/packages`, icon: <PackagesIcon fontSize="small" /> }] : []),
+                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon fontSize="small" /> }] : []),
+                ...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon fontSize="small" /> }] : []),
             ],
         },
         {
             title: 'Finance',
-            items: [...(can('expenses.manage') ? [{ label: 'Expenses', href: `${adminAppUrl}/expenses`, icon: <ExpenseIcon /> }] : [])],
+            items: [
+                ...(can('invoices.manage') ? [{ label: 'Invoices', href: `${adminAppUrl}/invoices`, icon: <InvoicesIcon fontSize="small" /> }] : []),
+                ...(can('payments.manage') ? [{ label: 'Payments', href: `${adminAppUrl}/payments`, icon: <PaymentsIcon fontSize="small" /> }] : []),
+                ...(can('expenses.manage') ? [{ label: 'Expenses', href: `${adminAppUrl}/expenses`, icon: <ExpenseIcon fontSize="small" /> }] : []),
+            ],
         },
         {
             title: 'Communication',
             items: [
-                ...(can('notifications.manage') ? [{ label: 'Notifications', href: `${adminAppUrl}/notifications`, icon: <NotificationsIcon /> }] : []),
-                ...(can('sms.manage') ? [{ label: 'SMS', href: `${adminAppUrl}/sms`, icon: <SmsIcon /> }] : []),
+                ...(can('sms.manage') ? [{ label: 'SMS', href: `${adminAppUrl}/sms`, icon: <SmsIcon fontSize="small" /> }] : []),
+                ...(can('notifications.manage')
+                    ? [{ label: 'Notifications', href: `${adminAppUrl}/notifications`, icon: <NotificationsIcon fontSize="small" /> }]
+                    : []),
             ],
         },
         {
-            title: 'Settings',
-            items: [...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon /> }] : [])],
-        },
-        {
-            title: 'System',
-            items: [{ label: 'UI Showcase', href: `${adminAppUrl}/ui-showcase`, icon: <UiShowcaseIcon /> }],
-        },
-        {
             title: 'Account',
-            items: [{ label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon /> }],
+            items: [
+                { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
+                { label: 'UI Showcase', href: `${adminAppUrl}/ui-showcase`, icon: <UiShowcaseIcon fontSize="small" /> },
+            ],
         },
     ].filter((group) => group.items.length > 0);
 
     const currentPath = url.split('?')[0];
+    const flattenedNav = navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.title })));
+
     const isActive = (href) => {
         try {
             const path = new URL(href).pathname;
@@ -205,9 +152,162 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
         }
     };
 
+    const currentItem = flattenedNav.find((item) => isActive(item.href));
+    const breadcrumbs = useMemo(() => {
+        const crumbs = [{ label: 'Workspace', href: `${adminAppUrl}/dashboard` }];
+        if (currentItem?.group) crumbs.push({ label: currentItem.group });
+        crumbs.push({ label: title || currentItem?.label || 'Dashboard' });
+        return crumbs;
+    }, [adminAppUrl, currentItem, title]);
+
     const openProfileMenu = (event) => setProfileAnchor(event.currentTarget);
     const closeProfileMenu = () => setProfileAnchor(null);
     const profileMenuOpen = Boolean(profileAnchor);
+
+    const sidebarContent = (
+        <Box sx={{ px: desktopOpen || isMobile ? 1 : 0.75, py: 1.25 }}>
+            <Stack
+                direction="row"
+                spacing={1.25}
+                sx={{
+                    alignItems: 'center',
+                    px: desktopOpen || isMobile ? 1 : 0,
+                    pb: 1.5,
+                }}
+            >
+                <Box
+                    sx={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: '12px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        background: 'linear-gradient(135deg, rgba(59,130,246,0.22), rgba(59,130,246,0.06))',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        flexShrink: 0,
+                    }}
+                >
+                    <Box component="img" src={`${appBase}/app_logo_transparent.png`} alt="Logo" sx={{ width: 28, height: 28 }} />
+                </Box>
+
+                {(desktopOpen || isMobile) && (
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                            ISP Control
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Multi-branch operations hub
+                        </Typography>
+                    </Box>
+                )}
+            </Stack>
+
+            {(desktopOpen || isMobile) && (
+                <Box
+                    sx={{
+                        mb: 2,
+                        p: 1.25,
+                        borderRadius: '12px',
+                        bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                    }}
+                >
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                        Current Role
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                        {formatLabel(roleName)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {authUser?.name || 'Administrator'}
+                    </Typography>
+                </Box>
+            )}
+
+            {navGroups.map((group) => (
+                <Box key={group.title} sx={{ mb: 1 }}>
+                    {(desktopOpen || isMobile) ? (
+                        <Typography
+                            variant="overline"
+                            sx={{ px: 1, py: 0.75, display: 'block', color: 'text.secondary' }}
+                        >
+                            {group.title}
+                        </Typography>
+                    ) : (
+                        <Divider sx={{ my: 1.25, mx: 1.25 }} />
+                    )}
+                    <List dense disablePadding>
+                        {group.items.map((item) => {
+                            const active = isActive(item.href);
+
+                            const button = (
+                                <ListItemButton
+                                    component={Link}
+                                    href={item.href}
+                                    onClick={() => setMobileOpen(false)}
+                                    selected={active}
+                                    sx={{
+                                        minHeight: 44,
+                                        px: desktopOpen || isMobile ? 1.25 : 1,
+                                        justifyContent: desktopOpen || isMobile ? 'flex-start' : 'center',
+                                        position: 'relative',
+                                        '&::before': active
+                                            ? {
+                                                  content: '""',
+                                                  position: 'absolute',
+                                                  left: 8,
+                                                  top: 10,
+                                                  bottom: 10,
+                                                  width: 4,
+                                                  borderRadius: 999,
+                                                  background: theme.palette.primary.main,
+                                              }
+                                            : undefined,
+                                    }}
+                                >
+                                    <ListItemIcon
+                                        sx={{
+                                            minWidth: 0,
+                                            mr: desktopOpen || isMobile ? 1.25 : 0,
+                                            justifyContent: 'center',
+                                            width: 20,
+                                            color: active ? 'primary.main' : 'text.secondary',
+                                        }}
+                                    >
+                                        {item.icon}
+                                    </ListItemIcon>
+                                    {(desktopOpen || isMobile) && (
+                                        <>
+                                            <ListItemText
+                                                primary={item.label}
+                                                primaryTypographyProps={{
+                                                    fontWeight: active ? 800 : 650,
+                                                    fontSize: '0.92rem',
+                                                }}
+                                            />
+                                            {active ? <ChevronRightIcon sx={{ fontSize: 18, color: 'primary.main' }} /> : null}
+                                        </>
+                                    )}
+                                </ListItemButton>
+                            );
+
+                            return (
+                                <ListItem key={item.label} disablePadding sx={{ px: 0.35, py: 0.25 }}>
+                                    {desktopOpen || isMobile ? (
+                                        button
+                                    ) : (
+                                        <Tooltip title={item.label} placement="right">
+                                            {button}
+                                        </Tooltip>
+                                    )}
+                                </ListItem>
+                            );
+                        })}
+                    </List>
+                </Box>
+            ))}
+        </Box>
+    );
 
     return (
         <ThemeProvider theme={theme}>
@@ -216,39 +316,83 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
                 <AppBar
                     position="fixed"
-                    color="default"
-                    elevation={0}
                     sx={{
-                        zIndex: (muiTheme) => muiTheme.zIndex.drawer + 1,
-                        bgcolor: 'background.paper',
-                        borderBottom: 1,
-                        borderColor: 'divider',
+                        zIndex: (muiTheme) => muiTheme.zIndex.drawer + 10,
+                        left: { md: desktopOpen ? expandedWidth + 16 : collapsedWidth + 16 },
+                        width: {
+                            xs: '100%',
+                            md: `calc(100% - ${desktopOpen ? expandedWidth + 24 : collapsedWidth + 24}px)`,
+                        },
+                        top: { xs: 0, md: 8 },
+                        right: { xs: 0, md: 8 },
+                        borderRadius: { xs: 0, md: '14px' },
                     }}
                 >
-                    <Toolbar variant="dense" sx={{ minHeight: 48 }}>
-                        <IconButton onClick={toggleNavigation} edge="start" sx={{ mr: 1 }}>
+                    <Toolbar sx={{ minHeight: 62, gap: 1, px: { xs: 1.1, md: 1.5, xl: 1.75 } }}>
+                        <IconButton onClick={toggleNavigation} edge="start">
                             <MenuIcon />
                         </IconButton>
-                        <Box
-                            component="img"
-                            src={`${appBase}/app_logo_transparent.png`}
-                            alt="Logo"
-                            sx={{ width: 28, height: 28, mr: 1 }}
-                        />
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600, flexGrow: 1 }}>
-                            {title}
-                        </Typography>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}
-                            >
-                                {authUser?.name || 'Admin'}
+
+                        <Stack sx={{ minWidth: 0, flex: 1, display: { xs: 'none', md: 'flex' } }}>
+                            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                                {breadcrumbs.map((crumb, index) => (
+                                    <Stack key={`${crumb.label}-${index}`} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                                        {index > 0 ? <ChevronRightIcon sx={{ fontSize: 16, opacity: 0.5 }} /> : null}
+                                        <Typography
+                                            variant="caption"
+                                            sx={{ color: index === breadcrumbs.length - 1 ? 'text.primary' : 'text.secondary', fontWeight: index === breadcrumbs.length - 1 ? 800 : 600 }}
+                                        >
+                                            {crumb.label}
+                                        </Typography>
+                                    </Stack>
+                                ))}
+                            </Stack>
+                            <Typography variant="h6" sx={{ fontWeight: 820, mt: 0.25 }}>
+                                {title}
                             </Typography>
-                            <IconButton size="small" onClick={openProfileMenu}>
-                                <AccountCircle fontSize="small" />
-                            </IconButton>
+                        </Stack>
+
+                        <TextField
+                            placeholder="Search customers, packages, branches..."
+                            size="small"
+                            sx={{ display: { xs: 'none', sm: 'flex' }, width: { sm: 260, xl: 320 } }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', ml: { xs: 'auto', md: 0 } }}>
+                            <Tooltip title="Notifications">
+                                <IconButton>
+                                    <Badge color="error" variant="dot">
+                                        <NotificationsIcon fontSize="small" />
+                                    </Badge>
+                                </IconButton>
+                            </Tooltip>
+
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                <Stack sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 0 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }} noWrap>
+                                        {authUser?.name || 'Admin'}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                        {formatLabel(roleName)}
+                                    </Typography>
+                                </Stack>
+                                <IconButton onClick={openProfileMenu} sx={{ p: 0.25 }}>
+                                    {authUser?.avatar_url ? (
+                                        <Avatar src={authUser.avatar_url} sx={{ width: 34, height: 34 }} />
+                                    ) : (
+                                        <Avatar sx={{ width: 34, height: 34, bgcolor: alpha(theme.palette.primary.main, 0.18), color: 'primary.main' }}>
+                                            {authUser?.name ? String(authUser.name).slice(0, 1).toUpperCase() : <AccountCircle fontSize="small" />}
+                                        </Avatar>
+                                    )}
+                                </IconButton>
+                            </Stack>
                         </Stack>
                     </Toolbar>
                 </AppBar>
@@ -259,18 +403,13 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     onClose={closeProfileMenu}
                     anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                     transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    PaperProps={{ variant: 'outlined', sx: { minWidth: 260, borderRadius: 2 } }}
+                    PaperProps={{ sx: { minWidth: 280, borderRadius: '14px' } }}
                 >
-                    <MenuItem
-                        component={Link}
-                        href={`${adminAppUrl}/profile`}
-                        onClick={closeProfileMenu}
-                        sx={{ py: 1.25, alignItems: 'flex-start' }}
-                    >
+                    <MenuItem component={Link} href={`${adminAppUrl}/profile`} onClick={closeProfileMenu} sx={{ py: 1.25 }}>
                         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', width: '100%' }}>
                             <Avatar
                                 src={authUser?.avatar_url || undefined}
-                                sx={{ width: 36, height: 36, bgcolor: dark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)', color: 'primary.main' }}
+                                sx={{ width: 40, height: 40, bgcolor: alpha(theme.palette.primary.main, 0.18), color: 'primary.main' }}
                             >
                                 {authUser?.name ? String(authUser.name).slice(0, 1).toUpperCase() : 'A'}
                             </Avatar>
@@ -278,64 +417,49 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                 <Typography variant="subtitle2" sx={{ fontWeight: 800 }} noWrap>
                                     {authUser?.name || 'Admin'}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }} noWrap>
-                                    {roleName}
+                                <Typography variant="caption" color="text.secondary" noWrap>
+                                    {formatLabel(roleName)}
                                 </Typography>
                             </Box>
-                            <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 800 }}>
                                 Edit
                             </Typography>
                         </Stack>
                     </MenuItem>
-
-                    <Divider sx={{ my: 1 }} />
-
+                    <Divider sx={{ my: 0.75 }} />
                     <MenuItem
                         onClick={() => {
                             toggleTheme();
+                            closeProfileMenu();
                         }}
                     >
-                        <ListItemIcon sx={{ minWidth: 0, mr: 1.25 }}>
-                            {dark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-                        </ListItemIcon>
+                        {dark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
                         Night Mode
                     </MenuItem>
-
                     <MenuItem component={Link} href={`${adminAppUrl}/dashboard`} onClick={closeProfileMenu}>
-                        <ListItemIcon sx={{ minWidth: 0, mr: 1.25 }}>
-                            <DashboardIcon fontSize="small" />
-                        </ListItemIcon>
+                        <DashboardIcon fontSize="small" />
                         Dashboard
                     </MenuItem>
-
                     {can('dashboard.view') ? (
                         <MenuItem component={Link} href={`${adminAppUrl}/reports`} onClick={closeProfileMenu}>
-                            <ListItemIcon sx={{ minWidth: 0, mr: 1.25 }}>
-                                <ReportsIcon fontSize="small" />
-                            </ListItemIcon>
+                            <ReportsIcon fontSize="small" />
                             Report
                         </MenuItem>
                     ) : null}
-
                     {can('customers.manage') ? (
                         <MenuItem component={Link} href={`${adminAppUrl}/customers`} onClick={closeProfileMenu}>
-                            <ListItemIcon sx={{ minWidth: 0, mr: 1.25 }}>
-                                <CustomersIcon fontSize="small" />
-                            </ListItemIcon>
+                            <CustomersIcon fontSize="small" />
                             Customers
                         </MenuItem>
                     ) : null}
-
-                    <Divider sx={{ my: 1 }} />
+                    <Divider sx={{ my: 0.75 }} />
                     <MenuItem
                         onClick={() => {
                             closeProfileMenu();
                             router.post(`${adminAppUrl}/logout`);
                         }}
                     >
-                        <ListItemIcon sx={{ minWidth: 0, mr: 1.25 }}>
-                            <LogoutIcon fontSize="small" />
-                        </ListItemIcon>
+                        <LogoutIcon fontSize="small" />
                         Logout
                     </MenuItem>
                 </Menu>
@@ -348,103 +472,46 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     sx={{
                         display: { xs: 'block', md: 'none' },
                         '& .MuiDrawer-paper': {
-                            width: drawerWidth,
-                            boxSizing: 'border-box',
-                            borderRight: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'background.paper',
+                            width: expandedWidth,
+                            p: 0.75,
+                            border: 'none',
+                            boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)',
                         },
                     }}
                 >
-                    <Toolbar variant="dense" sx={{ minHeight: 48 }} />
-                    <Box sx={{ py: 1 }}>
-                        {navGroups.map((group, idx) => (
-                            <Box key={`mobile-${group.title}`}>
-                                <Typography
-                                    variant="overline"
-                                    sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 700 }}
-                                >
-                                    {group.title}
-                                </Typography>
-                                <List dense disablePadding>
-                                    {group.items.map((item) => (
-                                        <ListItem key={`mobile-${item.label}`} disablePadding sx={{ px: 1, py: 0.25 }}>
-                                            <ListItemButton
-                                                component={Link}
-                                                href={item.href}
-                                                selected={isActive(item.href)}
-                                                onClick={() => setMobileOpen(false)}
-                                                sx={{ borderRadius: 1.25, minHeight: 40, px: 1.25 }}
-                                            >
-                                                <ListItemIcon sx={{ minWidth: 0, mr: 1.5, justifyContent: 'center' }}>
-                                                    {item.icon}
-                                                </ListItemIcon>
-                                                <ListItemText primary={item.label} />
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                                {idx < navGroups.length - 1 && <Divider sx={{ mx: 1.5, my: 1 }} />}
-                            </Box>
-                        ))}
-                    </Box>
+                    {sidebarContent}
                 </Drawer>
 
                 <Drawer
                     variant="permanent"
                     sx={{
                         display: { xs: 'none', md: 'block' },
-                        width: desktopOpen ? drawerWidth : 72,
+                        width: desktopOpen ? expandedWidth : collapsedWidth,
                         flexShrink: 0,
                         '& .MuiDrawer-paper': {
-                            width: desktopOpen ? drawerWidth : 72,
+                            width: desktopOpen ? expandedWidth : collapsedWidth,
                             boxSizing: 'border-box',
-                            borderRight: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'background.paper',
+                            m: 1,
+                            height: 'calc(100vh - 16px)',
+                            border: 'none',
                             overflowX: 'hidden',
-                            transition: 'width 0.2s ease',
+                            transition: 'width 180ms ease',
                         },
                     }}
                 >
-                    <Toolbar variant="dense" sx={{ minHeight: 48 }} />
-                    <Box sx={{ py: 1 }}>
-                        {navGroups.map((group, idx) => (
-                            <Box key={group.title}>
-                                {desktopOpen && (
-                                    <Typography
-                                        variant="overline"
-                                        sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 700 }}
-                                    >
-                                        {group.title}
-                                    </Typography>
-                                )}
-                                <List dense disablePadding>
-                                    {group.items.map((item) => (
-                                        <ListItem key={item.label} disablePadding sx={{ px: 1, py: 0.25 }}>
-                                            <ListItemButton
-                                                component={Link}
-                                                href={item.href}
-                                                selected={isActive(item.href)}
-                                                sx={{ borderRadius: 1.25, minHeight: 40, px: 1.25 }}
-                                            >
-                                                <ListItemIcon sx={{ minWidth: 0, mr: desktopOpen ? 1.5 : 0, justifyContent: 'center' }}>
-                                                    {item.icon}
-                                                </ListItemIcon>
-                                                {desktopOpen && <ListItemText primary={item.label} />}
-                                            </ListItemButton>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                                {idx < navGroups.length - 1 && <Divider sx={{ mx: 1.5, my: 1 }} />}
-                            </Box>
-                        ))}
-                    </Box>
+                    {sidebarContent}
                 </Drawer>
 
                 <Box
                     component="main"
-                    sx={{ flexGrow: 1, pt: 7, px: { xs: 1.25, sm: 2 }, pb: { xs: 1.25, sm: 2 }, bgcolor: 'background.default' }}
+                    sx={{
+                        flexGrow: 1,
+                        minWidth: 0,
+                        pt: { xs: 9.25, md: 10, lg: 10.75 },
+                        px: { xs: 1, sm: 1.4, lg: 1.75, xl: 2 },
+                        pl: { md: 2.25, lg: 2.5, xl: 2.75 },
+                        pb: { xs: 1.25, sm: 1.75 },
+                    }}
                 >
                     {children}
                 </Box>

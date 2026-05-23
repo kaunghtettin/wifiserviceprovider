@@ -1,3 +1,6 @@
+import EmptyState from '@/Components/admin/EmptyState';
+import PageHeader from '@/Components/admin/PageHeader';
+import TableCard from '@/Components/admin/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
@@ -11,7 +14,6 @@ import {
     IconButton,
     Menu,
     MenuItem,
-    Paper,
     Stack,
     Table,
     TableBody,
@@ -97,65 +99,67 @@ export default function BranchIndex({ branches }) {
         <AdminLayout title="Branches">
             <Head title="Branches" />
 
-            <Stack spacing={2}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                            Branches
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Create and manage branches for multi-location operations.
-                        </Typography>
-                    </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                        New Branch
-                    </Button>
-                </Stack>
+            <Stack spacing={2.25}>
+                <PageHeader
+                    eyebrow="Workspace"
+                    title="Branch management"
+                    description="Manage physical locations, operational codes, and contact details for every branch."
+                    actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New Branch</Button>}
+                />
 
-                <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 700, width: 120 }}>
-                                    Actions
+                <TableCard
+                    title="Branch directory"
+                    description={`${rows.length} branch records in the current workspace.`}
+                >
+                    {rows.length === 0 ? (
+                        <EmptyState
+                            compact
+                            icon={<AddIcon />}
+                            title="No branches yet"
+                            description="Create your first branch to organize customers, packages, staff, and financial data by location."
+                            action={{ label: 'Create branch', onClick: openCreate }}
+                        />
+                    ) : (
+                        <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Code</TableCell>
+                            <TableCell>Phone</TableCell>
+                            <TableCell>Address</TableCell>
+                            <TableCell align="right" sx={{ width: 72 }}>
+                                Actions
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {rows.map((branch) => (
+                            <TableRow key={branch.id} hover>
+                                <TableCell>
+                                    <Typography sx={{ fontWeight: 760 }}>{branch.name}</Typography>
+                                </TableCell>
+                                <TableCell>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                        {branch.code || '-'}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>{branch.phone || '-'}</TableCell>
+                                <TableCell sx={{ maxWidth: 520 }}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {branch.address || '-'}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                    <IconButton size="small" onClick={(e) => openActions(e, branch)} title="Actions">
+                                        <MoreVertIcon fontSize="small" />
+                                    </IconButton>
                                 </TableCell>
                             </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            No branches yet.
-                                        </Typography>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                rows.map((branch) => (
-                                    <TableRow key={branch.id} hover>
-                                        <TableCell>{branch.name}</TableCell>
-                                        <TableCell>{branch.code || '-'}</TableCell>
-                                        <TableCell>{branch.phone || '-'}</TableCell>
-                                        <TableCell sx={{ maxWidth: 520 }}>
-                                            <Typography variant="body2" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                                {branch.address || '-'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" onClick={(e) => openActions(e, branch)} title="Actions">
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </Paper>
+                        ))}
+                    </TableBody>
+                </Table>
+                    )}
+                </TableCard>
             </Stack>
 
             <Menu
