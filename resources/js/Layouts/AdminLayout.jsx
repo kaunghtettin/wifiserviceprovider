@@ -50,6 +50,7 @@ import {
     Shield as RolesIcon,
     Speed as PerformanceIcon,
     Sell as ExpenseCategoryIcon,
+    WarningAmber as OverdueReportIcon,
     Wifi as PackagesIcon,
     Insights as ReportsIcon,
 } from '@mui/icons-material';
@@ -161,6 +162,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 ...(can('dashboard.view')
                     ? [
                           { label: 'Report', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> },
+                          { label: 'Overdue Report', href: `${adminAppUrl}/reports/overdue`, icon: <OverdueReportIcon fontSize="small" /> },
                           { label: 'Performance', href: `${adminAppUrl}/performance`, icon: <PerformanceIcon fontSize="small" /> },
                       ]
                     : []),
@@ -198,11 +200,28 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
     const currentPath = normalizePath(url);
     const flattenedNav = navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.title })));
+    const activeHref = useMemo(() => {
+        const matches = flattenedNav
+            .filter((item) => {
+                if (!item.href) {
+                    return false;
+                }
+
+                const path = normalizePath(item.href);
+
+                return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
+            })
+            .sort((a, b) => normalizePath(b.href).length - normalizePath(a.href).length);
+
+        return matches[0]?.href || null;
+    }, [currentPath, flattenedNav]);
 
     const isActive = (href) => {
-        const path = normalizePath(href);
+        if (!href || !activeHref) {
+            return false;
+        }
 
-        return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
+        return normalizePath(href) === normalizePath(activeHref);
     };
 
     const currentItem = flattenedNav.find((item) => isActive(item.href));

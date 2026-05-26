@@ -20,8 +20,8 @@ import {
     Typography,
 } from '@mui/material';
 import {
-    CheckCircleOutline as CheckCircleOutlineIcon,
     Paid as PaidIcon,
+    ReceiptLong as ReceiptLongIcon,
     Search as SearchIcon,
     TrendingUp as TrendingUpIcon,
     WarningAmber as WarningAmberIcon,
@@ -36,8 +36,17 @@ const currency = new Intl.NumberFormat('en-US', {
 const formatCurrency = (value) => currency.format(Number(value || 0));
 const formatDate = (value) => (value ? String(value).slice(0, 10) : '-');
 const formatMonth = (value) => (value ? String(value).slice(0, 7) : '-');
+const formatOverduePeriod = (value) => {
+    const months = Number(value || 0);
 
-export default function ReportIndex({ filters, branches, canFilterBranch, summary, overdueInvoices }) {
+    if (!Number.isFinite(months) || months <= 0) {
+        return '-';
+    }
+
+    return months >= 3 ? '3+ months' : `${months} month${months > 1 ? 's' : ''}`;
+};
+
+export default function ReportIndex({ filters, branches, canFilterBranch, summary, overdueAging, overdueCustomers }) {
     const { admin_app_url } = usePage().props;
     const [month, setMonth] = useState(filters?.month || new Date().toISOString().slice(0, 7));
     const [branchId, setBranchId] = useState(filters?.branch_id || '');
@@ -69,7 +78,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
             value: summary?.paid_invoice_count ?? 0,
             helper: `${summary?.partial_invoice_count ?? 0} partial and ${summary?.unpaid_invoice_count ?? 0} unpaid/overdue invoices remain.`,
             tone: 'success',
-            icon: <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />,
+            icon: <ReceiptLongIcon sx={{ fontSize: 18 }} />,
         },
     ];
 
@@ -93,6 +102,12 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
             { month: defaultMonth },
             { preserveState: true, preserveScroll: true, replace: true },
         );
+    };
+
+    const openCustomer = (customerId) => {
+        if (!customerId) return;
+
+        router.get(`${admin_app_url}/customers/${customerId}`);
     };
 
     const toneStyles = {
@@ -238,52 +253,146 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                         </Stack>
                     </AppSurface>
 
-                    <TableCard
-                        title="Overdue watchlist"
-                        description="Largest unpaid balances that need branch follow-up."
-                        sx={{ flex: 1 }}
+                    <AppSurface sx={{ flex: 1, p: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+                            Overdue list
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                            Open the dedicated overdue page to review all overdue invoices with proper pagination and branch filtering.
+                        </Typography>
+                        <Stack spacing={1.1}>
+                            <Box
+                                sx={{
+                                    p: 1.25,
+                                    borderRadius: '10px',
+                                    bgcolor: 'rgba(245,158,11,0.08)',
+                                    border: '1px solid rgba(245,158,11,0.16)',
+                                }}
+                            >
+                                <Typography variant="caption" color="text.secondary">
+                                    Current overdue exposure
+                                </Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.35, mb: 0.25 }}>
+                                    {summary?.overdue_count ?? 0} invoice(s)
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Outstanding overdue balance {formatCurrency(summary?.overdue_amount)}
+                                </Typography>
+                            </Box>
+                            <Box>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() =>
+                                        router.get(`${admin_app_url}/reports/overdue`, {
+                                            month: month || undefined,
+                                            branch_id: branchId || undefined,
+                                        })
+                                    }
+                                >
+                                    Open Overdue List
+                                </Button>
+                            </Box>
+                        </Stack>
+                    </AppSurface>
+                </Stack>
+
+                <Stack spacing={2}>
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gap: 1,
+                            gridTemplateColumns: {
+                                xs: '1fr',
+                                md: 'repeat(3, minmax(0, 1fr))',
+                            },
+                        }}
                     >
-                        {overdueInvoices?.length ? (
-                            <Table size="small" stickyHeader>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Invoice</TableCell>
-                                        <TableCell>Customer</TableCell>
-                                        <TableCell>Due</TableCell>
-                                        <TableCell>Balance</TableCell>
-                                        <TableCell>Status</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {overdueInvoices.map((invoice) => (
-                                        <TableRow key={invoice.id} hover>
-                                            <TableCell>
-                                                <Typography sx={{ fontWeight: 760 }}>{invoice.invoice_number}</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {invoice.branch?.name || formatMonth(invoice.invoice_month)}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography sx={{ fontWeight: 700 }}>{invoice.customer?.name || '-'}</Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {invoice.customer?.customer_code || invoice.customer?.phone || '-'}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>{formatDate(invoice.due_date)}</TableCell>
-                                            <TableCell>{formatCurrency(invoice.balance_amount)}</TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={invoice.status} label={invoice.status} />
-                                            </TableCell>
+                        {(overdueAging || []).map((bucket) => (
+                            <AppSurface key={bucket.key} sx={{ p: 1.5 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    {bucket.label}
+                                </Typography>
+                                <Typography variant="h5" sx={{ fontWeight: 820, mt: 0.5, mb: 0.5 }}>
+                                    {bucket.customer_count ?? 0} customer(s)
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Overdue balance {formatCurrency(bucket.balance_amount)}
+                                </Typography>
+                            </AppSurface>
+                        ))}
+                    </Box>
+
+                    <TableCard
+                        title="Customers by overdue period"
+                        description="Customers grouped by their continuous overdue streak from the latest billing month."
+                    >
+                        {overdueCustomers?.length ? (
+                            <Box sx={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+                                <Table size="small" stickyHeader sx={{ minWidth: 820 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Customer</TableCell>
+                                            <TableCell>Branch</TableCell>
+                                            <TableCell>Overdue period</TableCell>
+                                            <TableCell>Oldest due</TableCell>
+                                            <TableCell align="right">Overdue balance</TableCell>
+                                            <TableCell>Status</TableCell>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHead>
+                                    <TableBody>
+                                        {overdueCustomers.map((item) => (
+                                            <TableRow key={`${item.customer_id}-${item.branch_id}`} hover>
+                                                <TableCell>
+                                                    <Box
+                                                        component="button"
+                                                        type="button"
+                                                        onClick={() => openCustomer(item.customer?.id)}
+                                                        disabled={!item.customer?.id}
+                                                        sx={{
+                                                            width: '100%',
+                                                            p: 0,
+                                                            m: 0,
+                                                            border: 0,
+                                                            bgcolor: 'transparent',
+                                                            textAlign: 'left',
+                                                            color: 'inherit',
+                                                            cursor: item.customer?.id ? 'pointer' : 'default',
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                transition: 'color 0.18s ease',
+                                                                '&:hover': {
+                                                                    color: item.customer?.id ? 'primary.main' : 'inherit',
+                                                                },
+                                                            }}
+                                                        >
+                                                            {item.customer?.name || '-'}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {item.customer?.customer_code || item.customer?.phone || '-'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>{item.branch?.name || '-'}</TableCell>
+                                                <TableCell>{formatOverduePeriod(item.months_overdue)}</TableCell>
+                                                <TableCell>{formatDate(item.oldest_due_date)}</TableCell>
+                                                <TableCell align="right">{formatCurrency(item.overdue_balance)}</TableCell>
+                                                <TableCell>
+                                                    <StatusBadge status="overdue" label={formatOverduePeriod(item.months_overdue)} />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
                         ) : (
                             <EmptyState
                                 compact
                                 icon={<WarningAmberIcon />}
-                                title="No overdue invoices"
-                                description="The current selection has no overdue exposure yet."
+                                title="No overdue customers"
+                                description="The current selection has no customers with overdue invoice months."
                             />
                         )}
                     </TableCard>
