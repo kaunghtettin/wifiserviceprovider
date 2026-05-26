@@ -67,7 +67,9 @@ export default function Dashboard({ stats, progress }) {
     const activityItems = [
         { title: 'RBAC foundation completed', meta: 'Roles, permissions, user scope and super admin seeding are live.', status: 'active' },
         { title: 'Core operations workspace online', meta: 'Branches, packages, customers and staff management are working.', status: 'active' },
-        { title: 'Billing engine pending', meta: 'Invoice generation, payment ledger and reminders are the next delivery block.', status: 'pending' },
+        { title: 'Finance operations expanded', meta: 'Invoices, payments, expenses, printing, and reporting are now part of the working admin workflow.', status: 'active' },
+        { title: 'Network sync foundation online', meta: 'Branch router endpoints, connection checks, and manual suspend/reactivate tracking are ready.', status: 'active' },
+        { title: 'Staff mobile workflow improved', meta: 'Customer lookup, payment collection, and network queues now support better phone-first operation.', status: 'active' },
     ];
 
     const networkWidgets = [
@@ -239,10 +241,12 @@ export default function Dashboard({ stats, progress }) {
                         </Typography>
                         <Stack spacing={1.25}>
                             {[
-                                ['Billing workflow', 'Draft'],
-                                ['Notification center', 'Planned'],
-                                ['SMS automation', 'Planned'],
-                                ['Voucher printing', 'Queued'],
+                                ['Billing workflow', 'Live'],
+                                ['Expense reporting', 'Live'],
+                                ['Voucher printing', 'Live'],
+                                ['Revenue analytics', 'Live'],
+                                ['Network automation', 'Live'],
+                                ['Staff mobile support', 'Live'],
                             ].map(([name, state]) => (
                                 <Stack
                                     key={name}
@@ -264,7 +268,7 @@ export default function Dashboard({ stats, progress }) {
                                             Enterprise module rollout
                                         </Typography>
                                     </Box>
-                                    <StatusBadge label={state} status={state === 'Draft' ? 'pending' : 'offline'} />
+                                    <StatusBadge label={state} status={state === 'Live' ? 'active' : state === 'Queued' ? 'pending' : 'offline'} />
                                 </Stack>
                             ))}
                         </Stack>

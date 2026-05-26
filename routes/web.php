@@ -6,6 +6,12 @@ use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\WifiPackageController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\ExpenseController;
+use App\Http\Controllers\Admin\ExpenseCategoryController;
+use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PerformanceController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
 use Illuminate\Foundation\Application;
@@ -40,6 +46,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             return Inertia::render('UiShowcase');
         })->name('ui-showcase');
 
+        Route::get('/settings', function () {
+            return Inertia::render('Placeholder', [
+                'title' => 'Setting',
+                'description' => 'System configuration options will be available here in a future update.',
+            ]);
+        })->name('settings');
+
         Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
         Route::middleware('permission:branches.manage')->group(function () {
@@ -52,6 +65,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('permission:customers.manage')->group(function () {
             Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
             Route::get('/customers/create', [CustomerController::class, 'create'])->name('customers.create');
+            Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
             Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
             Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
             Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
@@ -66,23 +80,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::middleware('permission:invoices.manage')->group(function () {
-            Route::get('/invoices', fn () => Inertia::render('Placeholder', ['title' => 'Invoices', 'description' => 'Monthly invoice generation and management will be implemented next.']))->name('invoices.index');
+            Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+            Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+            Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
         });
 
         Route::middleware('permission:payments.manage')->group(function () {
-            Route::get('/payments', fn () => Inertia::render('Placeholder', ['title' => 'Payments', 'description' => 'Payments and receipt workflows will be implemented next.']))->name('payments.index');
+            Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+            Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
+            Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
         });
 
         Route::middleware('permission:expenses.manage')->group(function () {
-            Route::get('/expenses', fn () => Inertia::render('Placeholder', ['title' => 'Expenses', 'description' => 'Expense tracking will be implemented next.']))->name('expenses.index');
-        });
+            Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+            Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+            Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
+            Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
 
-        Route::middleware('permission:notifications.manage')->group(function () {
-            Route::get('/notifications', fn () => Inertia::render('Placeholder', ['title' => 'Notifications', 'description' => 'Internal notification center will be implemented next.']))->name('notifications.index');
-        });
-
-        Route::middleware('permission:sms.manage')->group(function () {
-            Route::get('/sms', fn () => Inertia::render('Placeholder', ['title' => 'SMS', 'description' => 'SMS gateway integration and logs will be implemented next.']))->name('sms.index');
+            Route::get('/expense-categories', [ExpenseCategoryController::class, 'index'])->name('expense-categories.index');
+            Route::post('/expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+            Route::put('/expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'update'])->name('expense-categories.update');
+            Route::delete('/expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
         });
 
         Route::middleware('permission:users.manage')->group(function () {
@@ -100,7 +118,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::middleware('permission:dashboard.view')->group(function () {
-            Route::get('/reports', fn () => Inertia::render('Placeholder', ['title' => 'Reports', 'description' => 'Analytics and reporting dashboards will be implemented next.']))->name('reports.index');
+            Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+            Route::get('/performance', [PerformanceController::class, 'index'])->name('performance.index');
         });
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

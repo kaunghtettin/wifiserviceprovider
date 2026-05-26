@@ -15,7 +15,15 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule
+            ->command('invoices:generate-monthly')
+            ->monthlyOn(1, '00:15')
+            ->withoutOverlapping();
+
+        $schedule
+            ->command('reminders:generate-internal')
+            ->dailyAt('08:00')
+            ->withoutOverlapping();
     }
 
     /**

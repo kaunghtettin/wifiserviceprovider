@@ -1,0 +1,21 @@
+Reorganize the navigation drawer link as follow,
+
+Overview
+    - Dashboard
+    - Report
+    - Performance (make place holder page)
+Workspace
+    - customer
+    - Invoice
+    - Payment
+    - Expenses
+System (Change account to system)
+    - Profile
+    - Branches
+    - Users
+    - Roles
+    - Packages
+    - Setting
+    - Logout
+
+   

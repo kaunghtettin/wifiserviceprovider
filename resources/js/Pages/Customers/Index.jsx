@@ -1,5 +1,6 @@
 import AppSurface from '@/Components/admin/AppSurface';
 import EmptyState from '@/Components/admin/EmptyState';
+import PaginatedTableFooter from '@/Components/admin/PaginatedTableFooter';
 import PageHeader from '@/Components/admin/PageHeader';
 import StatusBadge from '@/Components/admin/StatusBadge';
 import TableCard from '@/Components/admin/TableCard';
@@ -36,6 +37,7 @@ import {
     MoreVert as MoreVertIcon,
     PeopleAltOutlined as PeopleAltOutlinedIcon,
     Search as SearchIcon,
+    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 
 const emptyForm = {
@@ -70,8 +72,8 @@ const getDayFromDateValue = (value) => {
     return day;
 };
 
-export default function CustomerIndex({ customers, branches, packages, canAssignBranch, filters }) {
-    const { admin_app_url } = usePage().props;
+export default function CustomerIndex({ customers, summary, branches, packages, canAssignBranch, filters }) {
+    const { admin_app_url, canFilterBranch = false, filterBranches = [] } = usePage().props;
     const theme = useTheme();
     const isPhone = useMediaQuery(theme.breakpoints.down('sm'));
     const [open, setOpen] = useState(false);
@@ -80,25 +82,21 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
     const [actionCustomer, setActionCustomer] = useState(null);
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm(emptyForm);
     const [query, setQuery] = useState(filters?.q || '');
+    const [statusFilter, setStatusFilter] = useState(filters?.status || '');
+    const [branchFilter, setBranchFilter] = useState(filters?.branch_id || '');
+    const perPage = Number(filters?.per_page || customers?.per_page || 15);
 
-    const rows = useMemo(() => customers || [], [customers]);
+    const rows = useMemo(() => customers?.data || [], [customers]);
     const branchOptions = useMemo(() => branches || [], [branches]);
     const packageOptions = useMemo(() => packages || [], [packages]);
     const metrics = useMemo(() => {
-        const total = rows.length;
-        const active = rows.filter((customer) => customer.status === 'active').length;
-        const pending = rows.filter((customer) => customer.status === 'pending').length;
-        const attention = rows.filter((customer) =>
-            ['suspended', 'disconnected'].includes(String(customer.status || '').toLowerCase()),
-        ).length;
-
         return [
-            { label: 'Total subscribers', value: total, helper: 'All customer records in the current workspace.' },
-            { label: 'Active service', value: active, helper: 'Customers currently running in active state.' },
-            { label: 'Pending setup', value: pending, helper: 'Installations or activations still being prepared.' },
-            { label: 'Need attention', value: attention, helper: 'Suspended or disconnected customer accounts.' },
+            { label: 'Total subscribers', value: summary?.total ?? 0, helper: 'All customer records in the current filter scope.' },
+            { label: 'Active service', value: summary?.active ?? 0, helper: 'Customers currently running in active state.' },
+            { label: 'Pending setup', value: summary?.pending ?? 0, helper: 'Installations or activations still being prepared.' },
+            { label: 'Need attention', value: summary?.attention ?? 0, helper: 'Suspended or disconnected customer accounts.' },
         ];
-    }, [rows]);
+    }, [summary]);
 
     const closeDialog = () => {
         setOpen(false);
@@ -119,28 +117,13 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
     };
 
     const openEdit = (c) => {
-        if (isPhone) {
-            router.get(`${admin_app_url}/customers/${c.id}/edit`);
-            return;
-        }
-        setEditing(c);
-        setData({
-            branch_id: c?.branch_id ?? '',
-            wifi_package_id: c?.wifi_package_id ?? '',
-            name: c?.name ?? '',
-            phone: c?.phone ?? '',
-            nrc: c?.nrc ?? '',
-            address: c?.address ?? '',
-            gps_lat: c?.gps_lat ?? '',
-            gps_lng: c?.gps_lng ?? '',
-            installation_date: normalizeDateValue(c?.installation_date),
-            billing_day_of_month: c?.billing_day_of_month ?? 1,
-            router_sn: c?.router_sn ?? '',
-            status: c?.status ?? 'active',
-            notes: c?.notes ?? '',
-        });
-        clearErrors();
-        setOpen(true);
+        if (!c?.id) return;
+        router.get(`${admin_app_url}/customers/${c.id}/edit`);
+    };
+
+    const openView = (customer) => {
+        if (!customer?.id) return;
+        router.get(`${admin_app_url}/customers/${customer.id}`);
     };
 
     const submit = (e) => {
@@ -184,26 +167,35 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
         setActionCustomer(null);
     };
 
+    const filterBranchOptions = useMemo(() => filterBranches || [], [filterBranches]);
+
     const applySearch = () => {
         router.get(
             `${admin_app_url}/customers`,
-            { q: query || '' },
+            {
+                q: query || '',
+                status: statusFilter || '',
+                branch_id: canFilterBranch ? branchFilter || '' : '',
+                per_page: perPage,
+            },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
     const resetSearch = () => {
         setQuery('');
+        setStatusFilter('');
+        setBranchFilter('');
         router.get(
             `${admin_app_url}/customers`,
-            {},
+            { per_page: perPage },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
-    const renderPackageLabel = (c) => {
-        if (!c?.package) return '-';
-        return `${c.package.name} (${c.package.speed_mbps} Mbps)`;
+    const renderPackageMeta = (c) => {
+        if (!c?.package?.speed_mbps) return 'No speed info';
+        return `${c.package.speed_mbps} Mbps`;
     };
 
     return (
@@ -263,35 +255,126 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
 
                 <TableCard
                     title="Subscriber directory"
-                    description={`${rows.length} customer records available for service operations and billing review.`}
+                    description={`${customers?.from || 0}-${customers?.to || 0} of ${customers?.total || 0} customer records available for service operations and billing review.`}
+                    toolbarBelow
                     toolbar={
-                        <>
-                            <TextField
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Search name, phone, code"
-                                size="small"
-                                sx={{ minWidth: { xs: '100%', sm: 280 } }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') applySearch();
-                                }}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                            />
-                            <Button variant="outlined" onClick={applySearch}>
-                                Search
-                            </Button>
-                            {query ? (
-                                <Button variant="text" color="inherit" onClick={resetSearch}>
-                                    Reset
-                                </Button>
+                        <Box
+                            sx={{
+                                width: '100%',
+                                display: 'grid',
+                                gap: 1.25,
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: canFilterBranch
+                                        ? 'minmax(220px, 1.6fr) minmax(140px, 1fr)'
+                                        : 'minmax(220px, 1.8fr) minmax(140px, 1fr)',
+                                    md: canFilterBranch
+                                        ? 'minmax(240px, 1.8fr) minmax(140px, 0.9fr) minmax(160px, 1fr) auto'
+                                        : 'minmax(260px, 2fr) minmax(150px, 1fr) auto',
+                                },
+                                alignItems: 'start',
+                            }}
+                        >
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Search
+                                </Typography>
+                                <TextField
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    placeholder="Customer, phone, or code"
+                                    size="small"
+                                    fullWidth
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') applySearch();
+                                    }}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Stack>
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Status
+                                </Typography>
+                                <TextField
+                                    select
+                                    size="small"
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    fullWidth
+                                >
+                                    <MenuItem value="">All statuses</MenuItem>
+                                    <MenuItem value="active">Active</MenuItem>
+                                    <MenuItem value="pending">Pending</MenuItem>
+                                    <MenuItem value="suspended">Suspended</MenuItem>
+                                    <MenuItem value="disconnected">Disconnected</MenuItem>
+                                </TextField>
+                            </Stack>
+                            {canFilterBranch ? (
+                                <Stack spacing={0.75}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                        Branch
+                                    </Typography>
+                                    <TextField
+                                        select
+                                        size="small"
+                                        value={branchFilter}
+                                        onChange={(e) => setBranchFilter(e.target.value)}
+                                        fullWidth
+                                    >
+                                        <MenuItem value="">All branches</MenuItem>
+                                        {filterBranchOptions.map((branch) => (
+                                            <MenuItem key={branch.id} value={branch.id}>
+                                                {branch.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Stack>
                             ) : null}
-                        </>
+                            <Stack
+                                spacing={0.75}
+                                sx={{
+                                    minWidth: { md: 150 },
+                                }}
+                            >
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Actions
+                                </Typography>
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    sx={{
+                                        justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                                        alignItems: 'stretch',
+                                        flexWrap: 'wrap',
+                                        minHeight: 40,
+                                    }}
+                                >
+                                    <Button
+                                        variant="outlined"
+                                        onClick={applySearch}
+                                        sx={{ minHeight: 40, px: 2.25, alignSelf: 'stretch' }}
+                                    >
+                                        Apply
+                                    </Button>
+                                    {query || statusFilter || branchFilter ? (
+                                        <Button
+                                            variant="text"
+                                            color="inherit"
+                                            onClick={resetSearch}
+                                            sx={{ minHeight: 40, px: 1.5, alignSelf: 'stretch' }}
+                                        >
+                                            Reset
+                                        </Button>
+                                    ) : null}
+                                </Stack>
+                            </Stack>
+                        </Box>
                     }
                 >
                     {rows.length === 0 ? (
@@ -318,9 +401,34 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                     <Stack spacing={1.25}>
                                         <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
                                             <Box sx={{ minWidth: 0 }}>
-                                                <Typography sx={{ fontWeight: 780, lineHeight: 1.2 }} noWrap>
-                                                    {c.name}
-                                                </Typography>
+                                                <Box
+                                                    component="button"
+                                                    type="button"
+                                                    onClick={() => openView(c)}
+                                                    sx={{
+                                                        width: '100%',
+                                                        p: 0,
+                                                        m: 0,
+                                                        border: 0,
+                                                        bgcolor: 'transparent',
+                                                        textAlign: 'left',
+                                                        color: 'inherit',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        sx={{
+                                                            fontWeight: 780,
+                                                            lineHeight: 1.2,
+                                                            transition: 'color 0.18s ease',
+                                                            '&:hover': { color: 'primary.main' },
+                                                        }}
+                                                        noWrap
+                                                        title={c.name || '-'}
+                                                    >
+                                                        {c.name || '-'}
+                                                    </Typography>
+                                                </Box>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
                                                     {c.customer_code || '-'}
                                                 </Typography>
@@ -345,18 +453,21 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                             </Box>
                                             <Box>
                                                 <Typography variant="caption" color="text.secondary">
-                                                    Billing day
+                                                    Status
                                                 </Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
-                                                    {c.billing_day_of_month || '-'}
-                                                </Typography>
+                                                <Box sx={{ mt: 0.4 }}>
+                                                    <StatusBadge status={c.status} />
+                                                </Box>
                                             </Box>
                                             <Box sx={{ gridColumn: '1 / -1' }}>
                                                 <Typography variant="caption" color="text.secondary">
                                                     Package
                                                 </Typography>
                                                 <Typography variant="body2" sx={{ fontWeight: 650 }}>
-                                                    {renderPackageLabel(c)}
+                                                    {c.package?.name || '-'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {renderPackageMeta(c)}
                                                 </Typography>
                                             </Box>
                                             <Box sx={{ gridColumn: '1 / -1' }}>
@@ -370,57 +481,156 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                                         </Box>
 
                                         <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
-                                            <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
+                                            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                                                <Button
+                                                    variant="text"
+                                                    color="inherit"
+                                                    onClick={() => openView(c)}
+                                                    sx={{ minWidth: 0, px: 0.5 }}
+                                                >
+                                                    Details
+                                                </Button>
+                                                <Button
+                                                    component="a"
+                                                    href={c.phone ? `tel:${c.phone}` : undefined}
+                                                    variant="text"
+                                                    color="inherit"
+                                                    disabled={!c.phone}
+                                                    sx={{ minWidth: 0, px: 0.5 }}
+                                                >
+                                                    Call
+                                                </Button>
+                                                <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
+                                                    <MoreVertIcon fontSize="small" />
+                                                </IconButton>
+                                            </Stack>
                                         </Stack>
                                     </Stack>
                                 </Box>
                             ))}
                         </Stack>
                     ) : (
-                        <Table size="small" stickyHeader sx={{ minWidth: 1040 }}>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Customer</TableCell>
-                                    <TableCell>Phone</TableCell>
-                                    <TableCell>Package</TableCell>
-                                    <TableCell>Billing Day</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell>Branch</TableCell>
-                                    <TableCell>Installation</TableCell>
-                                    <TableCell align="right" sx={{ width: 72 }}>
-                                        Actions
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {rows.map((c) => (
-                                    <TableRow key={c.id} hover>
-                                        <TableCell sx={{ minWidth: 220 }}>
-                                            <Typography sx={{ fontWeight: 760 }}>{c.name}</Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                                                {c.customer_code || '-'}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>{c.phone || '-'}</TableCell>
-                                        <TableCell>{renderPackageLabel(c)}</TableCell>
-                                        <TableCell>{c.billing_day_of_month || '-'}</TableCell>
-                                        <TableCell>
-                                            <StatusBadge status={c.status} />
-                                        </TableCell>
-                                        <TableCell>{c.branch?.name || `#${c.branch_id}`}</TableCell>
-                                        <TableCell>{normalizeDateValue(c.installation_date) || '-'}</TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" onClick={(e) => openActions(e, c)} title="Actions">
-                                                <MoreVertIcon fontSize="small" />
-                                            </IconButton>
+                        <Box
+                            sx={{
+                                width: '100%',
+                                overflowX: 'auto',
+                                overflowY: 'hidden',
+                            }}
+                        >
+                            <Table
+                                size="small"
+                                stickyHeader
+                                sx={{
+                                    minWidth: 660,
+                                    tableLayout: 'fixed',
+                                    '& .MuiTableCell-root': {
+                                        px: 1,
+                                        py: 0.75,
+                                        verticalAlign: 'top',
+                                    },
+                                    '& .MuiTableHead-root .MuiTableCell-root': {
+                                        py: 0.85,
+                                        fontSize: '0.7rem',
+                                        letterSpacing: '0.08em',
+                                    },
+                                }}
+                            >
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Customer</TableCell>
+                                        <TableCell sx={{ width: 108, minWidth: 108, maxWidth: 108 }}>Phone</TableCell>
+                                        <TableCell sx={{ width: 154, minWidth: 154, maxWidth: 154 }}>Package</TableCell>
+                                        <TableCell sx={{ width: 92, minWidth: 92, maxWidth: 92 }}>Status</TableCell>
+                                        <TableCell sx={{ width: 100, minWidth: 100, maxWidth: 100 }}>Branch</TableCell>
+                                        <TableCell
+                                            align="center"
+                                            sx={{ width: 40, minWidth: 40, maxWidth: 40, px: 0.5 }}
+                                            aria-label="Actions"
+                                        >
+                                            ...
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHead>
+                                <TableBody>
+                                    {rows.map((c) => (
+                                        <TableRow key={c.id} hover>
+                                            <TableCell sx={{ width: 160, minWidth: 160, maxWidth: 160 }}>
+                                                <Box
+                                                    component="button"
+                                                    type="button"
+                                                    onClick={() => openView(c)}
+                                                    sx={{
+                                                        width: '100%',
+                                                        p: 0,
+                                                        m: 0,
+                                                        border: 0,
+                                                        bgcolor: 'transparent',
+                                                        textAlign: 'left',
+                                                        color: 'inherit',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        sx={{
+                                                            fontWeight: 760,
+                                                            fontSize: '0.9rem',
+                                                            lineHeight: 1.2,
+                                                            transition: 'color 0.18s ease',
+                                                            '&:hover': { color: 'primary.main' },
+                                                        }}
+                                                        noWrap
+                                                        title={c.name || '-'}
+                                                    >
+                                                        {c.name || '-'}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{ fontFamily: 'monospace', fontSize: '0.76rem', lineHeight: 1.2 }}
+                                                    noWrap
+                                                    title={c.customer_code || '-'}
+                                                >
+                                                    {c.customer_code || '-'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ width: 108, minWidth: 108, maxWidth: 108 }}>
+                                                <Typography noWrap title={c.phone || '-'} sx={{ fontSize: '0.85rem', lineHeight: 1.2 }}>
+                                                    {c.phone || '-'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ width: 154, minWidth: 154, maxWidth: 154 }}>
+                                                <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.2 }} noWrap title={c.package?.name || '-'}>
+                                                    {c.package?.name || '-'}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary" noWrap title={renderPackageMeta(c)} sx={{ fontSize: '0.76rem', lineHeight: 1.2 }}>
+                                                    {renderPackageMeta(c)}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ width: 92, minWidth: 92, maxWidth: 92 }}>
+                                                <StatusBadge status={c.status} />
+                                            </TableCell>
+                                            <TableCell sx={{ width: 100, minWidth: 100, maxWidth: 100 }}>
+                                                <Typography
+                                                    noWrap
+                                                    sx={{ fontSize: '0.84rem', lineHeight: 1.2 }}
+                                                    title={c.branch?.name || `#${c.branch_id}`}
+                                                >
+                                                    {c.branch?.name || `#${c.branch_id}`}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ width: 40, minWidth: 40, maxWidth: 40, px: 0.5 }}>
+                                                <IconButton size="small" sx={{ p: 0.25 }} onClick={(e) => openActions(e, c)} title="Actions">
+                                                    <MoreVertIcon fontSize="small" />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Box>
                     )}
+                    <PaginatedTableFooter pagination={customers} baseUrl={`${admin_app_url}/customers`} filters={filters} />
                 </TableCard>
             </Stack>
 
@@ -432,6 +642,15 @@ export default function CustomerIndex({ customers, branches, packages, canAssign
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                 PaperProps={{ variant: 'outlined', sx: { borderRadius: '12px' } }}
             >
+                <MenuItem
+                    onClick={() => {
+                        const c = actionCustomer;
+                        closeActions();
+                        if (c) openView(c);
+                    }}
+                >
+                    <VisibilityIcon fontSize="small" style={{ marginRight: 8 }} /> View
+                </MenuItem>
                 <MenuItem
                     onClick={() => {
                         const c = actionCustomer;

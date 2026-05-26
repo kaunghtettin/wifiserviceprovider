@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
+    Alert,
     AppBar,
     Avatar,
     Badge,
@@ -10,11 +11,13 @@ import {
     Drawer,
     IconButton,
     InputAdornment,
+    LinearProgress,
     List,
     ListItem,
     ListItemButton,
     ListItemIcon,
     ListItemText,
+    Snackbar,
     Menu,
     MenuItem,
     Stack,
@@ -28,7 +31,6 @@ import {
 } from '@mui/material';
 import {
     AccountCircle,
-    AutoAwesomeMosaic as UiShowcaseIcon,
     AccountBalanceWallet as ExpenseIcon,
     Business as BusinessIcon,
     ChevronRight as ChevronRightIcon,
@@ -44,8 +46,10 @@ import {
     Person as PersonIcon,
     ReceiptLong as InvoicesIcon,
     Search as SearchIcon,
+    Settings as SettingsIcon,
     Shield as RolesIcon,
-    Sms as SmsIcon,
+    Speed as PerformanceIcon,
+    Sell as ExpenseCategoryIcon,
     Wifi as PackagesIcon,
     Insights as ReportsIcon,
 } from '@mui/icons-material';
@@ -59,6 +63,27 @@ const formatLabel = (value) =>
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const normalizePath = (value) => {
+    const raw = String(value || '')
+        .split('?')[0]
+        .split('#')[0]
+        .trim();
+
+    if (!raw) {
+        return '/';
+    }
+
+    try {
+        const pathname = /^[a-z]+:\/\//i.test(raw)
+            ? new URL(raw).pathname
+            : raw;
+
+        return pathname.replace(/\/+$/, '') || '/';
+    } catch {
+        return raw.replace(/\/+$/, '') || '/';
+    }
+};
+
 export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const { url, props } = usePage();
     const adminAppUrl = props.admin_app_url;
@@ -67,9 +92,13 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const permissions = props.auth?.permissions || [];
     const isSuperAdmin = !!props.auth?.is_super_admin;
     const roleName = props.auth?.role || (isSuperAdmin ? 'super_admin' : 'staff');
+    const unreadNotifications = Number(props.notifications?.unread_count || 0);
+    const flash = props.flash || {};
     const [profileAnchor, setProfileAnchor] = useState(null);
     const [desktopOpen, setDesktopOpen] = useState(true);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [navigating, setNavigating] = useState(false);
+    const [toast, setToast] = useState(null);
     const [dark, setDark] = useState(() => {
         if (typeof window === 'undefined') return false;
         return window.localStorage.getItem('admin-color-mode') === 'dark';
@@ -77,6 +106,34 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
     const theme = useMemo(() => getAdminTheme(dark ? 'dark' : 'light'), [dark]);
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    useEffect(() => {
+        const unregisterStart = router.on('start', () => setNavigating(true));
+        const unregisterFinish = router.on('finish', () => setNavigating(false));
+        const unregisterError = router.on('error', () => setNavigating(false));
+        const unregisterInvalid = router.on('invalid', () => setNavigating(false));
+
+        return () => {
+            unregisterStart();
+            unregisterFinish();
+            unregisterError();
+            unregisterInvalid();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (flash?.success) {
+            setToast({ severity: 'success', message: flash.success });
+            return;
+        }
+        if (flash?.error) {
+            setToast({ severity: 'error', message: flash.error });
+            return;
+        }
+        if (flash?.warning) {
+            setToast({ severity: 'warning', message: flash.warning });
+        }
+    }, [flash?.error, flash?.success, flash?.warning]);
 
     const toggleTheme = () => {
         setDark((prev) => {
@@ -101,60 +158,56 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
             title: 'Overview',
             items: [
                 { label: 'Dashboard', href: `${adminAppUrl}/dashboard`, icon: <DashboardIcon fontSize="small" /> },
-                ...(can('dashboard.view') ? [{ label: 'Reports', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> }] : []),
+                ...(can('dashboard.view')
+                    ? [
+                          { label: 'Report', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> },
+                          { label: 'Performance', href: `${adminAppUrl}/performance`, icon: <PerformanceIcon fontSize="small" /> },
+                      ]
+                    : []),
             ],
         },
         {
             title: 'Workspace',
             items: [
-                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon fontSize="small" /> }] : []),
-                ...(can('customers.manage') ? [{ label: 'Customers', href: `${adminAppUrl}/customers`, icon: <CustomersIcon fontSize="small" /> }] : []),
-                ...(can('packages.manage') ? [{ label: 'Packages', href: `${adminAppUrl}/packages`, icon: <PackagesIcon fontSize="small" /> }] : []),
-                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon fontSize="small" /> }] : []),
-                ...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon fontSize="small" /> }] : []),
-            ],
-        },
-        {
-            title: 'Finance',
-            items: [
-                ...(can('invoices.manage') ? [{ label: 'Invoices', href: `${adminAppUrl}/invoices`, icon: <InvoicesIcon fontSize="small" /> }] : []),
-                ...(can('payments.manage') ? [{ label: 'Payments', href: `${adminAppUrl}/payments`, icon: <PaymentsIcon fontSize="small" /> }] : []),
+                ...(can('customers.manage') ? [{ label: 'Customer', href: `${adminAppUrl}/customers`, icon: <CustomersIcon fontSize="small" /> }] : []),
+                ...(can('invoices.manage') ? [{ label: 'Invoice', href: `${adminAppUrl}/invoices`, icon: <InvoicesIcon fontSize="small" /> }] : []),
+                ...(can('payments.manage') ? [{ label: 'Payment', href: `${adminAppUrl}/payments`, icon: <PaymentsIcon fontSize="small" /> }] : []),
                 ...(can('expenses.manage') ? [{ label: 'Expenses', href: `${adminAppUrl}/expenses`, icon: <ExpenseIcon fontSize="small" /> }] : []),
             ],
         },
         {
-            title: 'Communication',
-            items: [
-                ...(can('sms.manage') ? [{ label: 'SMS', href: `${adminAppUrl}/sms`, icon: <SmsIcon fontSize="small" /> }] : []),
-                ...(can('notifications.manage')
-                    ? [{ label: 'Notifications', href: `${adminAppUrl}/notifications`, icon: <NotificationsIcon fontSize="small" /> }]
-                    : []),
-            ],
-        },
-        {
-            title: 'Account',
+            title: 'System',
             items: [
                 { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
-                { label: 'UI Showcase', href: `${adminAppUrl}/ui-showcase`, icon: <UiShowcaseIcon fontSize="small" /> },
+                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon fontSize="small" /> }] : []),
+                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon fontSize="small" /> }] : []),
+                ...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon fontSize="small" /> }] : []),
+                ...(can('packages.manage') ? [{ label: 'Packages', href: `${adminAppUrl}/packages`, icon: <PackagesIcon fontSize="small" /> }] : []),
+                ...(can('expenses.manage')
+                    ? [{ label: 'Expense Categories', href: `${adminAppUrl}/expense-categories`, icon: <ExpenseCategoryIcon fontSize="small" /> }]
+                    : []),
+                { label: 'Setting', href: `${adminAppUrl}/settings`, icon: <SettingsIcon fontSize="small" /> },
+                {
+                    label: 'Logout',
+                    icon: <LogoutIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/logout`),
+                },
             ],
         },
     ].filter((group) => group.items.length > 0);
 
-    const currentPath = url.split('?')[0];
+    const currentPath = normalizePath(url);
     const flattenedNav = navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.title })));
 
     const isActive = (href) => {
-        try {
-            const path = new URL(href).pathname;
-            return currentPath === path || currentPath.startsWith(`${path}/`);
-        } catch {
-            return false;
-        }
+        const path = normalizePath(href);
+
+        return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
     };
 
     const currentItem = flattenedNav.find((item) => isActive(item.href));
     const breadcrumbs = useMemo(() => {
-        const crumbs = [{ label: 'Workspace', href: `${adminAppUrl}/dashboard` }];
+        const crumbs = [{ label: 'Admin', href: `${adminAppUrl}/dashboard` }];
         if (currentItem?.group) crumbs.push({ label: currentItem.group });
         crumbs.push({ label: title || currentItem?.label || 'Dashboard' });
         return crumbs;
@@ -238,13 +291,16 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     )}
                     <List dense disablePadding>
                         {group.items.map((item) => {
-                            const active = isActive(item.href);
+                            const active = item.href ? isActive(item.href) : false;
 
                             const button = (
                                 <ListItemButton
-                                    component={Link}
-                                    href={item.href}
-                                    onClick={() => setMobileOpen(false)}
+                                    component={item.href ? Link : 'button'}
+                                    {...(item.href ? { href: item.href } : { type: 'button' })}
+                                    onClick={() => {
+                                        setMobileOpen(false);
+                                        item.onClick?.();
+                                    }}
                                     selected={active}
                                     sx={{
                                         minHeight: 44,
@@ -328,6 +384,18 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         borderRadius: { xs: 0, md: '14px' },
                     }}
                 >
+                    {navigating ? (
+                        <LinearProgress
+                            color="primary"
+                            sx={{
+                                position: 'absolute',
+                                inset: 'auto 0 0 0',
+                                height: 2,
+                                borderBottomLeftRadius: { xs: 0, md: '14px' },
+                                borderBottomRightRadius: { xs: 0, md: '14px' },
+                            }}
+                        />
+                    ) : null}
                     <Toolbar sx={{ minHeight: 62, gap: 1, px: { xs: 1.1, md: 1.5, xl: 1.75 } }}>
                         <IconButton onClick={toggleNavigation} edge="start">
                             <MenuIcon />
@@ -368,7 +436,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', ml: { xs: 'auto', md: 0 } }}>
                             <Tooltip title="Notifications">
                                 <IconButton>
-                                    <Badge color="error" variant="dot">
+                                    <Badge color="error" badgeContent={unreadNotifications} max={99}>
                                         <NotificationsIcon fontSize="small" />
                                     </Badge>
                                 </IconButton>
@@ -463,6 +531,24 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         Logout
                     </MenuItem>
                 </Menu>
+
+                <Snackbar
+                    open={!!toast}
+                    autoHideDuration={3200}
+                    onClose={() => setToast(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                >
+                    {toast ? (
+                        <Alert
+                            severity={toast.severity}
+                            variant="filled"
+                            onClose={() => setToast(null)}
+                            sx={{ width: '100%', minWidth: { xs: 260, sm: 320 } }}
+                        >
+                            {toast.message}
+                        </Alert>
+                    ) : null}
+                </Snackbar>
 
                 <Drawer
                     variant="temporary"

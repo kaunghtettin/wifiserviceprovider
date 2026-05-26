@@ -43,50 +43,36 @@ Acceptance criteria:
 - All list/search screens are branch-filtered.
 - Invoice uniqueness per customer per month is enforced.
 
-## Phase 2 — Notifications, SMS, Expenses, Printing Polish
+## Phase 2 — Expenses, Printing Polish, and Future Automation
 
-Goal: automate reminders and scale communications and reporting.
+Goal: expand finance operations and keep automation items staged for future workflow.
 
 - Expense management
   - CRUD expenses with categories
   - Branch expense reporting
-- Reminder & notification system
-  - Internal notifications based on overdue rules (e.g., “after 3 days late”)
-  - Notification center with read/unread
-- SMS gateway integration
-  - Provider abstraction (MPT/Ooredoo/Twilio or local provider)
-  - SMS templates (before due, overdue, after overdue)
-  - Bulk SMS: overdue customers, all customers in branch, selected customers
-  - SMS logs + failure visibility
 - Background jobs
   - Monthly invoice generation scheduler
-  - Reminder evaluation + SMS dispatch scheduler
 - Voucher/receipt printing
   - A4 and thermal (58mm/80mm) formats
   - Include customer, package, paid amount, date, staff, branch
+- Future workflow (deferred)
+  - Internal reminder and notification center
+  - SMS provider abstraction and template system
+  - Bulk messaging and delivery logs
 
 Acceptance criteria:
 
-- Reminders are traceable (notification logs + SMS logs).
-- SMS sending is idempotent per cycle (no duplicate blasts).
+- Expense data is traceable by branch and month.
+- Printing outputs match invoice and payment records consistently.
 
-## Phase 3 — Automation & Payments (Advanced)
+## Phase 3 — Internal Automation (Advanced)
 
-Goal: reduce manual work through network and payment automation.
+Goal: reduce manual work through internal network automation and staff workflow support.
 
-- Mikrotik integration
-  - Suspend internet after overdue threshold
-  - Reactivate after payment
-  - Track sync status and failures
-- Online payments
-  - Integrate KBZPay/WavePay/AyaPay (as available)
-  - Reconcile into payments and invoices
-- Customer portal
-  - View invoices, pay online, download receipts
 - Staff mobile support (optional)
   - Mobile-first flows for field operations
 
 ## Cross-Cutting Requirements (All Phases)
 
 - Security: password hashing, session timeout, least privilege, audit logs, backups.
-- Performance: pagination, proper DB indexes, background workers for reminders/SMS, optional Redis caching for heavy dashboards.
+- Performance: pagination, proper DB indexes, background workers for invoice jobs, optional Redis caching for heavy dashboards.

@@ -1,7 +1,7 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Paper, Stack, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 
 const normalizeDateValue = (value) => {
     if (!value) return '';
@@ -37,6 +37,8 @@ const buildInitial = (customer, canAssignBranch, defaultBranchId) => ({
 
 export default function CustomerForm({ mode, customer, branches, packages, canAssignBranch, defaultBranchId }) {
     const { admin_app_url } = usePage().props;
+    const theme = useTheme();
+    const isPhone = useMediaQuery(theme.breakpoints.down('sm'));
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Customer' : 'New Customer';
 
@@ -67,8 +69,8 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
         <AdminLayout title={title}>
             <Head title={title} />
 
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, maxWidth: 980, mx: 'auto' }}>
-                <Stack spacing={2}>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 2, maxWidth: 980, mx: 'auto', mb: { xs: 9, sm: 0 } }}>
+                <Stack spacing={1.75}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
                         <Box>
                             <Typography variant="h6" sx={{ fontWeight: 800 }}>
@@ -85,9 +87,9 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                         </Button>
                     </Stack>
 
-                    <Box component="form" onSubmit={submit}>
+                    <Box component="form" id="customer-mobile-form" onSubmit={submit}>
                         <Stack spacing={2}>
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                                 {canAssignBranch ? (
                                     <TextField
                                         select
@@ -124,7 +126,7 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 </TextField>
                             </Stack>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                                 <TextField
                                     label="Customer Name"
                                     value={data.name}
@@ -153,7 +155,7 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 />
                             </Stack>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                                 <TextField
                                     select
                                     label="Billing Day"
@@ -206,7 +208,7 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 </TextField>
                             </Stack>
 
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
                                 <TextField
                                     label="Router SN"
                                     value={data.router_sn}
@@ -253,7 +255,7 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 minRows={2}
                             />
 
-                            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', display: { xs: 'none', sm: 'flex' } }}>
                                 <Button component={Link} href={`${admin_app_url}/customers`} disabled={processing}>
                                     Cancel
                                 </Button>
@@ -265,6 +267,32 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                     </Box>
                 </Stack>
             </Paper>
+
+            {isPhone ? (
+                <Paper
+                    elevation={0}
+                    sx={{
+                        position: 'fixed',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: (muiTheme) => muiTheme.zIndex.appBar - 1,
+                        borderTop: `1px solid ${theme.palette.divider}`,
+                        p: 1,
+                        borderRadius: 0,
+                        bgcolor: 'background.paper',
+                    }}
+                >
+                    <Stack direction="row" spacing={1}>
+                        <Button component={Link} href={`${admin_app_url}/customers`} disabled={processing} variant="outlined" fullWidth>
+                            Cancel
+                        </Button>
+                        <Button type="submit" form="customer-mobile-form" variant="contained" disabled={processing} fullWidth>
+                            {isEdit ? 'Save' : 'Create'}
+                        </Button>
+                    </Stack>
+                </Paper>
+            ) : null}
         </AdminLayout>
     );
 }

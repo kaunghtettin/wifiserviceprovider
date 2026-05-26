@@ -105,15 +105,40 @@ export const getAdminTheme = (mode = 'light') =>
         components: {
             MuiCssBaseline: {
                 styleOverrides: (theme) => ({
+                    html: {
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: `${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.5 : 0.34)} transparent`,
+                    },
                     body: {
                         backgroundImage:
                             theme.palette.mode === 'dark'
                                 ? 'radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 28%), radial-gradient(circle at top right, rgba(139,92,246,0.10), transparent 24%)'
                                 : 'radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 28%), radial-gradient(circle at top right, rgba(139,92,246,0.06), transparent 24%)',
                         backgroundAttachment: 'fixed',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: `${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.5 : 0.34)} transparent`,
                     },
                     '*': {
                         boxSizing: 'border-box',
+                    },
+                    '*::-webkit-scrollbar': {
+                        width: 10,
+                        height: 10,
+                    },
+                    '*::-webkit-scrollbar-track': {
+                        background: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.08 : 0.04),
+                        borderRadius: 999,
+                    },
+                    '*::-webkit-scrollbar-thumb': {
+                        background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.72 : 0.5)}, ${alpha(theme.palette.secondary.main, theme.palette.mode === 'dark' ? 0.56 : 0.36)})`,
+                        borderRadius: 999,
+                        border: `2px solid ${alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.9 : 0.96)}`,
+                    },
+                    '*::-webkit-scrollbar-thumb:hover': {
+                        background: `linear-gradient(180deg, ${alpha(theme.palette.primary.light, theme.palette.mode === 'dark' ? 0.86 : 0.68)}, ${alpha(theme.palette.secondary.light, theme.palette.mode === 'dark' ? 0.72 : 0.52)})`,
+                    },
+                    '*::-webkit-scrollbar-corner': {
+                        background: 'transparent',
                     },
                     '::selection': {
                         background: alpha(theme.palette.primary.main, 0.18),

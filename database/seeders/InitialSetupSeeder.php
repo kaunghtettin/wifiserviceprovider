@@ -40,8 +40,6 @@ class InitialSetupSeeder extends Seeder
             ['key' => 'invoices.manage', 'description' => 'Manage invoices'],
             ['key' => 'payments.manage', 'description' => 'Manage payments & receipts'],
             ['key' => 'expenses.manage', 'description' => 'Manage expenses'],
-            ['key' => 'notifications.manage', 'description' => 'Manage notifications'],
-            ['key' => 'sms.manage', 'description' => 'Send SMS (single/bulk)'],
         ];
 
         foreach ($permissions as $permission) {
@@ -59,16 +57,12 @@ class InitialSetupSeeder extends Seeder
             'invoices.manage',
             'payments.manage',
             'expenses.manage',
-            'notifications.manage',
-            'sms.manage',
         ];
 
         $staffPermissionKeys = [
             'dashboard.view',
             'customers.manage',
             'payments.manage',
-            'notifications.manage',
-            'sms.manage',
         ];
 
         if ($admin) {

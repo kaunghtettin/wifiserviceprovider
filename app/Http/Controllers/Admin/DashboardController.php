@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\WifiPackage;
 use Illuminate\Http\Request;
@@ -22,16 +25,25 @@ class DashboardController extends Controller
 
         $packagesQuery = WifiPackage::query();
         $customersQuery = Customer::query();
+        $invoicesQuery = Invoice::query();
+        $paymentsQuery = Payment::query();
+        $expensesQuery = Expense::query();
 
         if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
             $packagesQuery->where(function ($q) use ($user) {
                 $q->whereNull('branch_id')->orWhere('branch_id', $user->branch_id);
             });
             $customersQuery->where('branch_id', $user->branch_id);
+            $invoicesQuery->where('branch_id', $user->branch_id);
+            $paymentsQuery->where('branch_id', $user->branch_id);
+            $expensesQuery->where('branch_id', $user->branch_id);
         }
 
         $packagesCount = $packagesQuery->count();
         $customersCount = $customersQuery->count();
+        $invoicesCount = $invoicesQuery->count();
+        $paymentsCount = $paymentsQuery->count();
+        $expensesCount = $expensesQuery->count();
 
         return Inertia::render('Dashboard', [
             'stats' => [
@@ -39,6 +51,9 @@ class DashboardController extends Controller
                 'users' => $usersCount,
                 'packages' => $packagesCount,
                 'customers' => $customersCount,
+                'invoices' => $invoicesCount,
+                'payments' => $paymentsCount,
+                'expenses' => $expensesCount,
             ],
             'progress' => [
                 'phase' => 'Phase 1 (MVP)',
@@ -48,15 +63,15 @@ class DashboardController extends Controller
                     'Branch management (CRUD)',
                     'WiFi package management (CRUD + active/inactive)',
                     'Customer management (CRUD + search + responsive mobile flow)',
-                ],
-                'next' => [
                     'Monthly invoices (generation + listing)',
-                    'Payments (manual entry + receipt workflow)',
-                    'Expenses (tracking + categories)',
-                    'Notifications/SMS (Phase 2)',
+                    'Payments (manual entry + invoice balance updates)',
+                    'Expenses (branch-aware CRUD + monthly filtering)',
+                    'Voucher / receipt printing',
+                    'Revenue analytics and branch finance reporting',
+                    'Staff mobile support improvements',
                 ],
+                'next' => [],
             ],
         ]);
     }
 }
-
