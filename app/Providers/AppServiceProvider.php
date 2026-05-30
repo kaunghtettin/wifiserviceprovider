@@ -23,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        $this->app->singleton(
+            \Inertia\ResponseFactory::class,
+            \App\Support\Inertia\ResponseFactory::class
+        );
+
+        \Inertia\Inertia::clearResolvedInstance(\Inertia\ResponseFactory::class);
     }
 }

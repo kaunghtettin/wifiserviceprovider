@@ -10,7 +10,6 @@ import {
     Divider,
     Drawer,
     IconButton,
-    InputAdornment,
     LinearProgress,
     List,
     ListItem,
@@ -21,7 +20,6 @@ import {
     Menu,
     MenuItem,
     Stack,
-    TextField,
     ThemeProvider,
     Toolbar,
     Tooltip,
@@ -45,8 +43,6 @@ import {
     People as CustomersIcon,
     Person as PersonIcon,
     ReceiptLong as InvoicesIcon,
-    Search as SearchIcon,
-    Settings as SettingsIcon,
     Shield as RolesIcon,
     Speed as PerformanceIcon,
     Sell as ExpenseCategoryIcon,
@@ -188,7 +184,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 ...(can('expenses.manage')
                     ? [{ label: 'Expense Categories', href: `${adminAppUrl}/expense-categories`, icon: <ExpenseCategoryIcon fontSize="small" /> }]
                     : []),
-                { label: 'Setting', href: `${adminAppUrl}/settings`, icon: <SettingsIcon fontSize="small" /> },
                 {
                     label: 'Logout',
                     icon: <LogoutIcon fontSize="small" />,
@@ -265,10 +260,10 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 {(desktopOpen || isMobile) && (
                     <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
-                            ISP Control
+                            Super
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            Multi-branch operations hub
+                            Excellent Wifi Service
                         </Typography>
                     </Box>
                 )}
@@ -438,19 +433,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                 {title}
                             </Typography>
                         </Stack>
-
-                        <TextField
-                            placeholder="Search customers, packages, branches..."
-                            size="small"
-                            sx={{ display: { xs: 'none', sm: 'flex' }, width: { sm: 260, xl: 320 } }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
 
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', ml: { xs: 'auto', md: 0 } }}>
                             <Tooltip title="Notifications">

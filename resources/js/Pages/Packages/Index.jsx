@@ -231,6 +231,16 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
                                     onChange={(e) => setData('branch_id', e.target.value)}
                                     error={!!errors.branch_id}
                                     helperText={errors.branch_id}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                 >
                                     <MenuItem value="">All branches</MenuItem>
                                     {branchOptions.map((b) => (
@@ -245,8 +255,18 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
                                 label="Package Name"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
-                                error={!!errors.name}
-                                helperText={errors.name}
+                                    error={!!errors.name}
+                                    helperText={errors.name}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                 required
                             />
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -256,6 +276,16 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
                                     onChange={(e) => setData('speed_mbps', e.target.value)}
                                     error={!!errors.speed_mbps}
                                     helperText={errors.speed_mbps}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -265,6 +295,16 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
                                     onChange={(e) => setData('price', e.target.value)}
                                     error={!!errors.price}
                                     helperText={errors.price}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -276,6 +316,16 @@ export default function PackageIndex({ packages, branches, canAssignBranch }) {
                                     onChange={(e) => setData('duration_months', e.target.value)}
                                     error={!!errors.duration_months}
                                     helperText={errors.duration_months}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />

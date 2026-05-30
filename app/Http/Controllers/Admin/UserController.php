@@ -20,10 +20,15 @@ class UserController extends Controller
         $authUser = $request->user();
         $search = trim((string) $request->query('q', ''));
 
-        $query = User::query()->with(['branch:id,name', 'role:id,name'])->orderByDesc('id');
+        $query = User::query()->with(['branches:id,name', 'role:id,name'])->orderByDesc('id');
 
-        if (!$authUser?->hasRole('super_admin') && !$authUser?->hasPermission('branches.view_all') && $authUser?->branch_id) {
-            $query->where('branch_id', $authUser->branch_id);
+        if (!$authUser?->hasRole('super_admin') && !$authUser?->hasPermission('branches.view_all')) {
+            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
+            if (!empty($authBranchIds)) {
+                $query->whereHas('branches', function ($q) use ($authBranchIds) {
+                    $q->whereIn('branches.id', $authBranchIds);
+                });
+            }
         }
 
         if ($search !== '') {
@@ -36,7 +41,6 @@ class UserController extends Controller
 
         $users = $query->get([
             'id',
-            'branch_id',
             'role_id',
             'name',
             'email',
@@ -77,22 +81,16 @@ class UserController extends Controller
     {
         $authUser = $request->user();
 
-        $branchId = $authUser?->hasRole('super_admin')
-            ? ($request->input('branch_id') ?: null)
-            : ($authUser?->branch_id ?: null);
-
         $roleId = $authUser?->hasRole('super_admin')
             ? ($request->input('role_id') ?: null)
             : Role::where('name', 'staff')->value('id');
 
-        $request->merge([
-            'branch_id' => $branchId,
-            'role_id' => $roleId,
-        ]);
+        $request->merge(['role_id' => $roleId]);
 
         $data = $request->validate([
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'branch_ids' => ['array'],
+            'branch_ids.*' => ['integer', 'exists:branches,id'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:64'],
@@ -108,8 +106,9 @@ class UserController extends Controller
             }
         }
 
-        User::create([
-            'branch_id' => $data['branch_id'],
+        $branchIds = $authUser?->hasRole('super_admin') ? ($data['branch_ids'] ?? []) : [];
+
+        $user = User::create([
             'role_id' => $data['role_id'],
             'name' => $data['name'],
             'email' => $data['email'],
@@ -117,6 +116,10 @@ class UserController extends Controller
             'status' => $data['status'],
             'password' => Hash::make($data['password']),
         ]);
+
+        if (!empty($branchIds)) {
+            $user->branches()->sync($branchIds);
+        }
 
         return redirect()->route('admin.users.index');
     }
@@ -129,25 +132,26 @@ class UserController extends Controller
             abort(422, 'Use Profile to update your own account.');
         }
 
-        if (!$authUser?->hasRole('super_admin') && $authUser?->branch_id && (int) $user->branch_id !== (int) $authUser->branch_id) {
-            abort(403);
+        if (!$authUser?->hasRole('super_admin')) {
+            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
+            $targetBranchIds = $user->branches()->pluck('branches.id')->all() ?? [];
+            if (!empty($authBranchIds) && empty(array_intersect($authBranchIds, $targetBranchIds))) {
+                abort(403);
+            }
         }
 
         if (!$authUser?->hasRole('super_admin') && $user->role?->name === 'super_admin') {
             abort(403);
         }
 
-        $branchId = $authUser?->hasRole('super_admin') ? ($request->input('branch_id') ?: null) : ($user->branch_id ?: $authUser?->branch_id ?: null);
         $roleId = $authUser?->hasRole('super_admin') ? ($request->input('role_id') ?: null) : Role::where('name', 'staff')->value('id');
 
-        $request->merge([
-            'branch_id' => $branchId,
-            'role_id' => $roleId,
-        ]);
+        $request->merge(['role_id' => $roleId]);
 
         $data = $request->validate([
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'branch_ids' => ['array'],
+            'branch_ids.*' => ['integer', 'exists:branches,id'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:64'],
@@ -163,7 +167,6 @@ class UserController extends Controller
         }
 
         $user->fill([
-            'branch_id' => $data['branch_id'],
             'role_id' => $data['role_id'],
             'name' => $data['name'],
             'email' => $data['email'],
@@ -177,6 +180,10 @@ class UserController extends Controller
 
         $user->save();
 
+        if ($authUser?->hasRole('super_admin')) {
+            $user->branches()->sync($data['branch_ids'] ?? []);
+        }
+
         return redirect()->route('admin.users.index');
     }
 
@@ -188,8 +195,12 @@ class UserController extends Controller
             abort(422, 'You cannot delete your own account.');
         }
 
-        if (!$authUser?->hasRole('super_admin') && $authUser?->branch_id && (int) $user->branch_id !== (int) $authUser->branch_id) {
-            abort(403);
+        if (!$authUser?->hasRole('super_admin')) {
+            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
+            $targetBranchIds = $user->branches()->pluck('branches.id')->all() ?? [];
+            if (!empty($authBranchIds) && empty(array_intersect($authBranchIds, $targetBranchIds))) {
+                abort(403);
+            }
         }
 
         if ($user->role?->name === 'super_admin' && !$authUser?->hasRole('super_admin')) {

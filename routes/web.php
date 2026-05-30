@@ -14,7 +14,6 @@ use App\Http\Controllers\Admin\PerformanceController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -29,7 +28,7 @@ use Inertia\Inertia;
 |
 */
 
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
         Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -38,20 +37,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        Route::get('/', function () {
-            return Inertia::render('Dashboard');
-        })->name('home');
-
         Route::get('/ui-showcase', function () {
             return Inertia::render('UiShowcase');
         })->name('ui-showcase');
-
-        Route::get('/settings', function () {
-            return Inertia::render('Placeholder', [
-                'title' => 'Setting',
-                'description' => 'System configuration options will be available here in a future update.',
-            ]);
-        })->name('settings');
 
         Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
@@ -129,11 +117,4 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 });
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => true,
-        'canRegister' => false,
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', [AuthenticatedSessionController::class, 'create']);

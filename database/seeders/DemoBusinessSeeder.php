@@ -141,10 +141,10 @@ class DemoBusinessSeeder extends Seeder
 
         $superAdmin = User::query()->where('email', env('SUPER_ADMIN_EMAIL', 'superadmin@localhost'))->first();
         if ($superAdmin) {
-            $superAdmin->update([
-                'branch_id' => $branches->first()?->id,
-                'role_id' => $superAdminRole->id,
-            ]);
+            $superAdmin->update(['role_id' => $superAdminRole->id]);
+            if ($branches->first()) {
+                $superAdmin->branches()->syncWithoutDetaching([$branches->first()->id]);
+            }
         }
 
         foreach ($branches as $branch) {
@@ -153,7 +153,6 @@ class DemoBusinessSeeder extends Seeder
             $admin = User::query()->updateOrCreate(
                 ['email' => "{$branchCode}.admin@demo.local"],
                 [
-                    'branch_id' => $branch->id,
                     'role_id' => $adminRole->id,
                     'name' => "{$branch->name} Admin",
                     'phone' => '09-55'.str_pad((string) $branch->id, 6, '0', STR_PAD_LEFT),
@@ -162,23 +161,23 @@ class DemoBusinessSeeder extends Seeder
                     'email_verified_at' => now(),
                 ]
             );
+            $admin->branches()->syncWithoutDetaching([$branch->id]);
 
             $staffMembers = collect();
             foreach ([1, 2] as $number) {
-                $staffMembers->push(
-                    User::query()->updateOrCreate(
-                        ['email' => "{$branchCode}.staff{$number}@demo.local"],
-                        [
-                            'branch_id' => $branch->id,
-                            'role_id' => $staffRole->id,
-                            'name' => "{$branch->name} Staff {$number}",
-                            'phone' => '09-66'.str_pad((string) (($branch->id * 10) + $number), 6, '0', STR_PAD_LEFT),
-                            'password' => $defaultPassword,
-                            'status' => 'active',
-                            'email_verified_at' => now(),
-                        ]
-                    )
+                $staff = User::query()->updateOrCreate(
+                    ['email' => "{$branchCode}.staff{$number}@demo.local"],
+                    [
+                        'role_id' => $staffRole->id,
+                        'name' => "{$branch->name} Staff {$number}",
+                        'phone' => '09-66'.str_pad((string) (($branch->id * 10) + $number), 6, '0', STR_PAD_LEFT),
+                        'password' => $defaultPassword,
+                        'status' => 'active',
+                        'email_verified_at' => now(),
+                    ]
                 );
+                $staff->branches()->syncWithoutDetaching([$branch->id]);
+                $staffMembers->push($staff);
             }
 
             $usersByBranch[$branch->code] = [

@@ -84,8 +84,8 @@ export default function Dashboard({ stats, progress }) {
             <Stack spacing={2.25}>
                 <PageHeader
                     eyebrow="Operations Command Center"
-                    title="ISP business overview"
-                    description="A cleaner control layer for branches, subscribers, staff operations, and the upcoming billing engine."
+                    title="Super operations overview"
+                    description="A cleaner control layer for Excellent Wifi Service branches, subscribers, staff operations, and billing."
                     actions={[
                         <Button key="report" variant="outlined">Export snapshot</Button>,
                         <Button key="workspace" variant="contained">Open workspace</Button>,
@@ -167,7 +167,7 @@ export default function Dashboard({ stats, progress }) {
                                     Operations Pulse
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Build readiness across ISP workflows.
+                                    Build readiness across Super workflows.
                                 </Typography>
                             </Box>
                             <RevenueIcon sx={{ color: 'primary.main' }} />
@@ -237,7 +237,7 @@ export default function Dashboard({ stats, progress }) {
 
                     <AppSurface sx={{ flex: 1, p: 2.5 }}>
                         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
-                            ISP Readiness Snapshot
+                            Super Readiness Snapshot
                         </Typography>
                         <Stack spacing={1.25}>
                             {[

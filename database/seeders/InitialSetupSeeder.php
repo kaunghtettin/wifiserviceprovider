@@ -95,26 +95,23 @@ class InitialSetupSeeder extends Seeder
         $superAdminUser = User::firstOrNew(['email' => $superAdminEmail]);
         $superAdminUser->name = $superAdminName;
         $superAdminUser->password = Hash::make($superAdminPassword);
-        $superAdminUser->branch_id = $defaultBranch->id;
         $superAdminUser->role_id = $superAdminRole?->id;
         $superAdminUser->status = 'active';
         $superAdminUser->email_verified_at = now();
         $superAdminUser->save();
 
+        // Attach the default branch via the new many-to-many relation
+        $superAdminUser->branches()->syncWithoutDetaching([$defaultBranch->id]);
+
+        // Ensure the first created user has the super_admin role if missing (no branch_id fallback needed anymore)
         $firstUser = User::orderBy('id')->first();
-        if ($firstUser) {
-            if (!$firstUser->branch_id) {
-                $firstUser->branch_id = $defaultBranch->id;
-            }
-            if (!$firstUser->role_id && $superAdminRole) {
-                $firstUser->role_id = $superAdminRole->id;
-            }
+        if ($firstUser && !$firstUser->role_id && $superAdminRole) {
+            $firstUser->role_id = $superAdminRole->id;
             $firstUser->save();
         }
 
         $defaultRole = $staff ?: $admin ?: $superAdminRole;
         if ($defaultRole) {
-            User::whereNull('branch_id')->update(['branch_id' => $defaultBranch->id]);
             User::whereNull('role_id')->update(['role_id' => $defaultRole->id]);
         }
     }

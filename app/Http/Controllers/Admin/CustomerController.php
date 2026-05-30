@@ -49,11 +49,11 @@ class CustomerController extends Controller
 
         $packagesQuery = WifiPackage::query()->orderBy('name');
         if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all')) {
-            $branchId = $user?->branch_id;
-            $packagesQuery->where(function ($q) use ($branchId) {
+            $branchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+            $packagesQuery->where(function ($q) use ($branchIds) {
                 $q->whereNull('branch_id');
-                if ($branchId) {
-                    $q->orWhere('branch_id', $branchId);
+                if (!empty($branchIds)) {
+                    $q->orWhereIn('branch_id', $branchIds);
                 }
             });
         }
@@ -75,8 +75,9 @@ class CustomerController extends Controller
             ->orderByDesc('id');
 
         if (!$canViewAllBranches) {
-            if ($user?->branch_id) {
-                $customersQuery->where('branch_id', $user->branch_id);
+            $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+            if (!empty($userBranchIds)) {
+                $customersQuery->whereIn('branch_id', $userBranchIds);
             }
         } elseif ($branchId > 0) {
             $customersQuery->where('branch_id', $branchId);
@@ -224,6 +225,7 @@ class CustomerController extends Controller
 
         $branches = $this->getSelectableBranches($request);
         $packages = $this->getSelectablePackages($request);
+        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
 
         return Inertia::render('Customers/Form', [
             'mode' => 'create',
@@ -231,7 +233,7 @@ class CustomerController extends Controller
             'branches' => $branches,
             'packages' => $packages,
             'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
-            'defaultBranchId' => $user?->branch_id,
+            'defaultBranchId' => count($userBranchIds) === 1 ? $userBranchIds[0] : null,
         ]);
     }
 
@@ -242,6 +244,7 @@ class CustomerController extends Controller
 
         $branches = $this->getSelectableBranches($request);
         $packages = $this->getSelectablePackages($request);
+        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
 
         return Inertia::render('Customers/Form', [
             'mode' => 'edit',
@@ -265,7 +268,7 @@ class CustomerController extends Controller
             'branches' => $branches,
             'packages' => $packages,
             'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
-            'defaultBranchId' => $user?->branch_id,
+            'defaultBranchId' => count($userBranchIds) === 1 ? $userBranchIds[0] : null,
         ]);
     }
 
@@ -273,9 +276,18 @@ class CustomerController extends Controller
     {
         $user = $request->user();
 
-        $branchId = $user?->hasRole('super_admin')
-            ? (int) $request->input('branch_id')
-            : (int) ($user?->branch_id ?: 0);
+        if ($user?->hasRole('super_admin')) {
+            $branchId = (int) $request->input('branch_id');
+        } else {
+            $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+            if (count($userBranchIds) === 1) {
+                // Implicitly assign the only branch the user has access to
+                $branchId = $userBranchIds[0];
+            } else {
+                // User has 0 or multiple branches — require explicit selection (or error)
+                $branchId = (int) $request->input('branch_id');
+            }
+        }
 
         if ($branchId <= 0) {
             abort(422, 'Branch is required.');
@@ -353,11 +365,12 @@ class CustomerController extends Controller
     private function findScopedCustomer(Request $request, int $customerId): Customer
     {
         $user = $request->user();
+        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
 
         return Customer::query()
             ->when(
-                !$this->canViewAllBranches($request) && $user?->branch_id,
-                fn ($query) => $query->where('branch_id', $user->branch_id)
+                !$this->canViewAllBranches($request) && !empty($userBranchIds),
+                fn ($query) => $query->whereIn('branch_id', $userBranchIds)
             )
             ->findOrFail($customerId);
     }

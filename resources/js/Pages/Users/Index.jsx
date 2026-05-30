@@ -6,8 +6,10 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import {
+    Autocomplete,
     Box,
     Button,
+    Chip,
     Dialog,
     DialogActions,
     DialogContent,
@@ -27,7 +29,7 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, MoreVert as MoreVertIcon, Search as SearchIcon } from '@mui/icons-material';
 
 const emptyForm = {
-    branch_id: '',
+    branch_ids: [],
     role_id: '',
     name: '',
     email: '',
@@ -67,7 +69,7 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
     const openEdit = (u) => {
         setEditing(u);
         setData({
-            branch_id: u?.branch_id ?? '',
+            branch_ids: u?.branches?.map((b) => b.id) ?? [],
             role_id: u?.role_id ?? '',
             name: u?.name ?? '',
             email: u?.email ?? '',
@@ -84,7 +86,7 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
 
         const payload = {
             ...data,
-            branch_id: canAssignBranch ? (data.branch_id === '' ? null : data.branch_id) : undefined,
+            branch_ids: canAssignBranch ? data.branch_ids : undefined,
             role_id: canAssignRole ? data.role_id : undefined,
         };
 
@@ -125,7 +127,7 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
     };
 
     const roleLabel = (u) => u?.role?.name || '-';
-    const branchLabel = (u) => u?.branch?.name || (u?.branch_id ? `#${u.branch_id}` : '-');
+    const branchLabel = (u) => (u?.branches?.length ? u.branches.map((b) => b.name).join(', ') : '-');
 
     return (
         <AdminLayout title="Users">
@@ -178,48 +180,50 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                             action={{ label: 'Create user', onClick: openCreate }}
                         />
                     ) : (
-                        <Table size="small" stickyHeader sx={{ minWidth: 980 }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Name</TableCell>
-                                <TableCell>Email</TableCell>
-                                <TableCell>Phone</TableCell>
-                                <TableCell>Role</TableCell>
-                                <TableCell>Branch</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Last Login</TableCell>
-                                <TableCell align="right" sx={{ width: 72 }}>
-                                    Actions
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {rows.map((u) => (
-                                <TableRow key={u.id} hover>
-                                    <TableCell>
-                                        <Typography sx={{ fontWeight: 760 }}>{u.name}</Typography>
-                                    </TableCell>
-                                    <TableCell>{u.email}</TableCell>
-                                    <TableCell>{u.phone || '-'}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                                            {roleLabel(u)}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>{branchLabel(u)}</TableCell>
-                                    <TableCell>
-                                        <StatusBadge status={u.status} />
-                                    </TableCell>
-                                    <TableCell>{u.last_login_at ? String(u.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
-                                    <TableCell align="right">
-                                        <IconButton size="small" onClick={(e) => openActions(e, u)} title="Actions" disabled={u.id === authUserId}>
-                                            <MoreVertIcon fontSize="small" />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                        <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                            <Table size="small" stickyHeader sx={{ minWidth: { xs: 700, md: 980 } }}>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Name</TableCell>
+                                        <TableCell>Email</TableCell>
+                                        <TableCell>Phone</TableCell>
+                                        <TableCell>Role</TableCell>
+                                        <TableCell>Branch</TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Last Login</TableCell>
+                                        <TableCell align="right" sx={{ width: 72 }}>
+                                            Actions
+                                        </TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {rows.map((u) => (
+                                        <TableRow key={u.id} hover>
+                                            <TableCell>
+                                                <Typography sx={{ fontWeight: 760 }}>{u.name}</Typography>
+                                            </TableCell>
+                                            <TableCell>{u.email}</TableCell>
+                                            <TableCell>{u.phone || '-'}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                                                    {roleLabel(u)}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>{branchLabel(u)}</TableCell>
+                                            <TableCell>
+                                                <StatusBadge status={u.status} />
+                                            </TableCell>
+                                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.last_login_at ? String(u.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
+                                            <TableCell align="right">
+                                                <IconButton size="small" onClick={(e) => openActions(e, u)} title="Actions" disabled={u.id === authUserId}>
+                                                    <MoreVertIcon fontSize="small" />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Box>
                     )}
                 </TableCard>
             </Stack>
@@ -266,6 +270,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                         onChange={(e) => setData('role_id', e.target.value)}
                                         error={!!errors.role_id}
                                         helperText={errors.role_id}
+                                        slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                         required
                                         sx={{ flex: 1 }}
                                     >
@@ -278,22 +292,42 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                 ) : null}
 
                                 {canAssignBranch ? (
-                                    <TextField
-                                        select
-                                        label="Branch"
-                                        value={data.branch_id}
-                                        onChange={(e) => setData('branch_id', e.target.value)}
-                                        error={!!errors.branch_id}
-                                        helperText={errors.branch_id}
-                                        sx={{ flex: 1 }}
-                                    >
-                                        <MenuItem value="">No branch</MenuItem>
-                                        {branchOptions.map((b) => (
-                                            <MenuItem key={b.id} value={b.id}>
-                                                {b.name}
-                                            </MenuItem>
-                                        ))}
-                                    </TextField>
+                                    <Autocomplete
+                                        multiple
+                                        options={branchOptions}
+                                        getOptionLabel={(option) => option.name || ''}
+                                        value={branchOptions.filter((b) => data.branch_ids.includes(b.id))}
+                                        onChange={(_, newValue) => setData('branch_ids', newValue.map((v) => v.id))}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Branches"
+                                                error={!!errors.branch_ids}
+                                                helperText={errors.branch_ids}
+                                                slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
+                                            />
+                                        )}
+                                        renderTags={(tagValue, getTagProps) =>
+                                            tagValue.map((option, index) => (
+                                                <Chip
+                                                    key={option.id}
+                                                    label={option.name}
+                                                    size="small"
+                                                    {...getTagProps({ index })}
+                                                />
+                                            ))
+                                        }
+                                        sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
+                                    />
                                 ) : null}
                             </Stack>
 
@@ -304,6 +338,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={!!errors.name}
                                     helperText={errors.name}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -313,6 +357,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('email', e.target.value)}
                                     error={!!errors.email}
                                     helperText={errors.email}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -325,6 +379,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('phone', e.target.value)}
                                     error={!!errors.phone}
                                     helperText={errors.phone}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     sx={{ flex: 1 }}
                                 />
                                 <TextField
@@ -334,6 +398,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('status', e.target.value)}
                                     error={!!errors.status}
                                     helperText={errors.status}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 >
@@ -349,6 +423,16 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                 onChange={(e) => setData('password', e.target.value)}
                                 error={!!errors.password}
                                 helperText={errors.password}
+                                slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                 required={!editing}
                             />
                         </Stack>

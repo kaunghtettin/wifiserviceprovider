@@ -381,6 +381,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('branch_id', event.target.value)}
                                     error={!!errors.branch_id}
                                     helperText={errors.branch_id}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                 >
                                     {branchOptions.map((branch) => (
@@ -399,6 +409,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('category', event.target.value)}
                                     error={!!errors.category}
                                     helperText={errors.category}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 >
@@ -415,6 +435,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('expense_date', event.target.value)}
                                     error={!!errors.expense_date}
                                     helperText={errors.expense_date}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                     InputLabelProps={{ shrink: true }}
@@ -429,6 +459,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('title', event.target.value)}
                                     error={!!errors.title}
                                     helperText={errors.title}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -438,6 +478,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('amount', event.target.value)}
                                     error={!!errors.amount}
                                     helperText={errors.amount}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -450,6 +500,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('vendor', event.target.value)}
                                     error={!!errors.vendor}
                                     helperText={errors.vendor}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     sx={{ flex: 1 }}
                                 />
                                 <TextField
@@ -458,6 +518,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                     onChange={(event) => setData('reference_no', event.target.value)}
                                     error={!!errors.reference_no}
                                     helperText={errors.reference_no}
+                                    slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                     sx={{ flex: 1 }}
                                 />
                             </Stack>
@@ -468,6 +538,16 @@ export default function ExpenseIndex({ expenses, branches, canAssignBranch, filt
                                 onChange={(event) => setData('notes', event.target.value)}
                                 error={!!errors.notes}
                                 helperText={errors.notes}
+                                slotProps={{ 
+  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
+  inputLabel: {
+    sx: {
+      '&.MuiInputLabel-outlined': {
+        transform: 'translate(14px, 12px) scale(1)',
+      },
+    }
+  }
+}}
                                 multiline
                                 minRows={2}
                             />

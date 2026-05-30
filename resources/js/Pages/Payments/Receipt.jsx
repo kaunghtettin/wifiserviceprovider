@@ -30,7 +30,7 @@ export default function PaymentReceipt({ payment }) {
             <Stack spacing={1.5}>
                 <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h6" sx={{ fontWeight: 850 }}>
-                        {payment.branch?.name || 'ISP Control'}
+                        {payment.branch?.name || 'Super (Excellent Wifi Service)'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         {payment.branch?.address || 'Branch address not available'}
