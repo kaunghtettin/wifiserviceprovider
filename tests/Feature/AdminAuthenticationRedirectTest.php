@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
@@ -64,9 +65,12 @@ class AdminAuthenticationRedirectTest extends TestCase
                 ]
             );
 
+            $shared = $this->app->make(HandleInertiaRequests::class)->share($request);
             $page = Inertia::render('Auth/Login')->toResponse($request)->getData(true);
 
             $this->assertSame('/isp/public/login', $page['url']);
+            $this->assertSame('http://localhost/isp/public', $shared['admin_app_url']);
+            $this->assertSame('/isp/public', $shared['app_base']);
         } finally {
             URL::forceRootUrl(null);
         }

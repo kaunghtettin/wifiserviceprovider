@@ -1,11 +1,13 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 export default function Guest({ children }) {
+    const { admin_app_url } = usePage().props;
+
     return (
         <div className="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
             <div>
-                <Link href="/">
+                <Link href={admin_app_url}>
                     <ApplicationLogo className="w-20 h-20 fill-current text-gray-500" />
                 </Link>
             </div>

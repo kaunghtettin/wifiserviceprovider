@@ -29,13 +29,13 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $path = parse_url(url('/'), PHP_URL_PATH) ?: '';
+        $appUrl = rtrim((string) config('app.url'), '/');
+        $path = parse_url($appUrl, PHP_URL_PATH) ?: '';
         $base = rtrim($path, '/');
-        $adminAppUrl = $base === '' ? '' : $base;
 
         return array_merge(parent::share($request), [
-            'admin_app_url' => $adminAppUrl,
-            'app_base' => $path,
+            'admin_app_url' => $appUrl,
+            'app_base' => $base,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
