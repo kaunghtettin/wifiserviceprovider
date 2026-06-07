@@ -797,7 +797,6 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     error={!!errors.installation_date}
                                     helperText={errors.installation_date}
                                     sx={{ flex: 1 }}
-                                    InputLabelProps={{ shrink: true }}
                                     slotProps={{ inputLabel: { shrink: true } }}
                                 />
                                 <TextField

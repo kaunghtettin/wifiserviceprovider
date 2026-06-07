@@ -188,7 +188,6 @@ export default function PerformanceIndex({ filters, branches, canFilterBranch, s
                             label="Month"
                             value={month}
                             onChange={(event) => setMonth(event.target.value)}
-                            InputLabelProps={{ shrink: true }}
                             slotProps={{ inputLabel: { shrink: true } }}
                             sx={{ minWidth: { xs: '100%', sm: 168 } }}
                         />,

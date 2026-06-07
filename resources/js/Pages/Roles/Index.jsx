@@ -220,16 +220,6 @@ export default function RolesIndex({ roles, permissions }) {
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={!!errors.name}
                                     helperText={errors.name}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -239,16 +229,6 @@ export default function RolesIndex({ roles, permissions }) {
                                     onChange={(e) => setData('description', e.target.value)}
                                     error={!!errors.description}
                                     helperText={errors.description}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 2 }}
                                 />
                             </Stack>

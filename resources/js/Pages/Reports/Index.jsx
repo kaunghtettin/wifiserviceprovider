@@ -36,17 +36,17 @@ const currency = new Intl.NumberFormat('en-US', {
 const formatCurrency = (value) => currency.format(Number(value || 0));
 const formatDate = (value) => (value ? String(value).slice(0, 10) : '-');
 const formatMonth = (value) => (value ? String(value).slice(0, 7) : '-');
-const formatOverduePeriod = (value) => {
-    const months = Number(value || 0);
+const formatDaysOverdue = (value) => {
+    const days = Number(value || 0);
 
-    if (!Number.isFinite(months) || months <= 0) {
+    if (!Number.isFinite(days) || days <= 0) {
         return '-';
     }
 
-    return months >= 3 ? '3+ months' : `${months} month${months > 1 ? 's' : ''}`;
+    return `${days} day${days === 1 ? '' : 's'}`;
 };
 
-export default function ReportIndex({ filters, branches, canFilterBranch, summary, overdueAging, overdueCustomers }) {
+export default function ReportIndex({ filters, branches, canFilterBranch, summary, overdueAging, overdueCustomers, canManageCustomers }) {
     const { admin_app_url } = usePage().props;
     const [month, setMonth] = useState(filters?.month || new Date().toISOString().slice(0, 7));
     const [branchId, setBranchId] = useState(filters?.branch_id || '');
@@ -105,7 +105,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
     };
 
     const openCustomer = (customerId) => {
-        if (!customerId) return;
+        if (!customerId || !canManageCustomers) return;
 
         router.get(`${admin_app_url}/customers/${customerId}`);
     };
@@ -125,7 +125,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                 <PageHeader
                     eyebrow="Billing"
                     title="Collection report"
-                    description="Review invoice collection, overdue exposure, and billing follow-up for the selected month. Use the Performance page for branch comparison and trend analysis."
+                    description={`Review billing and collections for the selected month. Overdue exposure is calculated as of ${formatDate(filters?.as_of_date)}.`}
                     actions={
                         <Stack direction="row" spacing={1}>
                             <TextField
@@ -134,7 +134,6 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                 label="Month"
                                 value={month}
                                 onChange={(event) => setMonth(event.target.value)}
-                                InputLabelProps={{ shrink: true }}
                                 slotProps={{ inputLabel: { shrink: true } }}
                             />
                             {canFilterBranch ? (
@@ -324,7 +323,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
 
                     <TableCard
                         title="Customers by overdue period"
-                        description="Customers grouped by their continuous overdue streak from the latest billing month."
+                        description="Customers prioritized by the age of their oldest unpaid due date, with all overdue balances included."
                     >
                         {overdueCustomers?.length ? (
                             <Box sx={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
@@ -333,7 +332,8 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                         <TableRow>
                                             <TableCell>Customer</TableCell>
                                             <TableCell>Branch</TableCell>
-                                            <TableCell>Overdue period</TableCell>
+                                            <TableCell>Days overdue</TableCell>
+                                            <TableCell>Invoices</TableCell>
                                             <TableCell>Oldest due</TableCell>
                                             <TableCell align="right">Overdue balance</TableCell>
                                             <TableCell>Status</TableCell>
@@ -347,7 +347,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                                         component="button"
                                                         type="button"
                                                         onClick={() => openCustomer(item.customer?.id)}
-                                                        disabled={!item.customer?.id}
+                                                        disabled={!item.customer?.id || !canManageCustomers}
                                                         sx={{
                                                             width: '100%',
                                                             p: 0,
@@ -356,7 +356,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                                             bgcolor: 'transparent',
                                                             textAlign: 'left',
                                                             color: 'inherit',
-                                                            cursor: item.customer?.id ? 'pointer' : 'default',
+                                                            cursor: item.customer?.id && canManageCustomers ? 'pointer' : 'default',
                                                         }}
                                                     >
                                                         <Typography
@@ -364,7 +364,7 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                                                 fontWeight: 700,
                                                                 transition: 'color 0.18s ease',
                                                                 '&:hover': {
-                                                                    color: item.customer?.id ? 'primary.main' : 'inherit',
+                                                                    color: item.customer?.id && canManageCustomers ? 'primary.main' : 'inherit',
                                                                 },
                                                             }}
                                                         >
@@ -376,11 +376,12 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell>{item.branch?.name || '-'}</TableCell>
-                                                <TableCell>{formatOverduePeriod(item.months_overdue)}</TableCell>
+                                                <TableCell>{formatDaysOverdue(item.days_overdue)}</TableCell>
+                                                <TableCell>{item.invoice_count ?? 0}</TableCell>
                                                 <TableCell>{formatDate(item.oldest_due_date)}</TableCell>
                                                 <TableCell align="right">{formatCurrency(item.overdue_balance)}</TableCell>
                                                 <TableCell>
-                                                    <StatusBadge status="overdue" label={formatOverduePeriod(item.months_overdue)} />
+                                                    <StatusBadge status="overdue" label={formatDaysOverdue(item.days_overdue)} />
                                                 </TableCell>
                                             </TableRow>
                                         ))}

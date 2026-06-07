@@ -74,4 +74,42 @@ class User extends Authenticatable
 
         return $this->role?->permissions?->contains('key', $permissionKey) ?? false;
     }
+
+    public function canViewAllBranches(): bool
+    {
+        return $this->hasRole('super_admin') || $this->hasPermission('branches.view_all');
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function accessibleBranchIds(): array
+    {
+        if ($this->relationLoaded('branches')) {
+            return $this->branches
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
+
+        return $this->branches()
+            ->pluck('branches.id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    public function canAccessBranch(int $branchId): bool
+    {
+        return $this->canViewAllBranches()
+            || in_array($branchId, $this->accessibleBranchIds(), true);
+    }
+
+    public function soleBranchId(): ?int
+    {
+        $branchIds = $this->accessibleBranchIds();
+
+        return count($branchIds) === 1 ? $branchIds[0] : null;
+    }
 }

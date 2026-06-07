@@ -20,7 +20,7 @@ class PerformanceController extends Controller
     {
         $user = $request->user();
 
-        return (bool) ($user?->hasRole('super_admin') || $user?->hasPermission('branches.view_all'));
+        return (bool) $user?->canViewAllBranches();
     }
 
     public function index(Request $request): Response
@@ -38,7 +38,9 @@ class PerformanceController extends Controller
 
         $monthEnd = $monthStart->copy()->endOfMonth();
         $canViewAllBranches = $this->canViewAllBranches($request);
-        $effectiveBranchId = $canViewAllBranches ? $selectedBranchId : (int) ($user?->branch_id ?: 0);
+        $effectiveBranchIds = $canViewAllBranches
+            ? ($selectedBranchId > 0 ? [$selectedBranchId] : null)
+            : ($user?->accessibleBranchIds() ?? []);
 
         $incomeQuery = Payment::query()->whereBetween('paid_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()]);
         $expenseQuery = Expense::query()->whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()]);
@@ -49,13 +51,13 @@ class PerformanceController extends Controller
         $customersQuery = Customer::query();
         $activeCustomersQuery = Customer::query()->where('status', 'active');
 
-        if ($effectiveBranchId > 0) {
-            $incomeQuery->where('branch_id', $effectiveBranchId);
-            $expenseQuery->where('branch_id', $effectiveBranchId);
-            $billedQuery->where('branch_id', $effectiveBranchId);
-            $overdueQuery->where('branch_id', $effectiveBranchId);
-            $customersQuery->where('branch_id', $effectiveBranchId);
-            $activeCustomersQuery->where('branch_id', $effectiveBranchId);
+        if ($effectiveBranchIds !== null) {
+            $incomeQuery->whereIn('branch_id', $effectiveBranchIds);
+            $expenseQuery->whereIn('branch_id', $effectiveBranchIds);
+            $billedQuery->whereIn('branch_id', $effectiveBranchIds);
+            $overdueQuery->whereIn('branch_id', $effectiveBranchIds);
+            $customersQuery->whereIn('branch_id', $effectiveBranchIds);
+            $activeCustomersQuery->whereIn('branch_id', $effectiveBranchIds);
         }
 
         $incomeTotal = (float) $incomeQuery->sum('amount');
@@ -72,21 +74,21 @@ class PerformanceController extends Controller
         $incomeByBranch = Payment::query()
             ->select('branch_id', DB::raw('SUM(amount) as income_total'))
             ->whereBetween('paid_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()])
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('income_total', 'branch_id');
 
         $expenseByBranch = Expense::query()
             ->select('branch_id', DB::raw('SUM(amount) as expense_total'))
             ->whereBetween('expense_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('expense_total', 'branch_id');
 
         $billedByBranch = Invoice::query()
             ->select('branch_id', DB::raw('SUM(total_amount) as billed_total'))
             ->whereDate('invoice_month', $monthStart->toDateString())
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('billed_total', 'branch_id');
 
@@ -94,25 +96,25 @@ class PerformanceController extends Controller
             ->select('branch_id', DB::raw('SUM(balance_amount) as overdue_total'))
             ->where('balance_amount', '>', 0)
             ->whereDate('due_date', '<=', $monthEnd->toDateString())
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('overdue_total', 'branch_id');
 
         $totalCustomersByBranch = Customer::query()
             ->select('branch_id', DB::raw('COUNT(*) as total_customers'))
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('total_customers', 'branch_id');
 
         $activeCustomersByBranch = Customer::query()
             ->select('branch_id', DB::raw('COUNT(*) as active_customers'))
             ->where('status', 'active')
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('branch_id')
             ->pluck('active_customers', 'branch_id');
 
         $branches = Branch::query()
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('id', $effectiveBranchIds))
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
@@ -177,7 +179,7 @@ class PerformanceController extends Controller
                 $monthStart->copy()->subMonths(5)->startOfMonth()->startOfDay(),
                 $monthEnd->copy()->endOfDay(),
             ])
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('ym')
             ->pluck('total', 'ym');
 
@@ -187,7 +189,7 @@ class PerformanceController extends Controller
                 $monthStart->copy()->subMonths(5)->startOfMonth()->toDateString(),
                 $monthEnd->toDateString(),
             ])
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('ym')
             ->pluck('total', 'ym');
 
@@ -197,7 +199,7 @@ class PerformanceController extends Controller
                 $monthStart->copy()->subMonths(5)->startOfMonth()->toDateString(),
                 $monthStart->toDateString(),
             ])
-            ->when($effectiveBranchId > 0, fn ($query) => $query->where('branch_id', $effectiveBranchId))
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->groupBy('ym')
             ->pluck('total', 'ym');
 

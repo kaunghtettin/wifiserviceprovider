@@ -14,12 +14,13 @@ trait BranchScoped
                 return;
             }
 
-            if ($user->hasRole('super_admin') || $user->hasPermission('branches.view_all')) {
+            if ($user->canViewAllBranches()) {
                 return;
             }
 
-            if ($user->branch_id && empty($model->branch_id)) {
-                $model->branch_id = $user->branch_id;
+            $branchId = $user->soleBranchId();
+            if ($branchId && empty($model->branch_id)) {
+                $model->branch_id = $branchId;
             }
         });
 
@@ -29,16 +30,14 @@ trait BranchScoped
                 return;
             }
 
-            if ($user->hasRole('super_admin') || $user->hasPermission('branches.view_all')) {
+            if ($user->canViewAllBranches()) {
                 return;
             }
 
-            if (!$user->branch_id) {
-                return;
-            }
-
-            $builder->where($builder->getModel()->getTable().'.branch_id', $user->branch_id);
+            $builder->whereIn(
+                $builder->getModel()->getTable().'.branch_id',
+                $user->accessibleBranchIds()
+            );
         });
     }
 }
-

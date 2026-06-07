@@ -56,6 +56,8 @@ Route::name('admin.')->group(function () {
             Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
             Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
             Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
+            Route::post('/customers/{customer}/invoices', [CustomerController::class, 'generateInvoice'])->name('customers.invoices.store');
+            Route::post('/customers/{customer}/payments', [CustomerController::class, 'recordPayment'])->name('customers.payments.store');
             Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
             Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
         });

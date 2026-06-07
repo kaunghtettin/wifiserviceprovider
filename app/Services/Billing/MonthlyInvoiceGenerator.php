@@ -12,10 +12,43 @@ use Illuminate\Support\Facades\DB;
 class MonthlyInvoiceGenerator
 {
     /**
+     * @return array{invoice: Invoice, created: bool}
+     */
+    public function generateForCustomer(Customer $customer, Carbon $invoiceMonth, ?User $actor = null): array
+    {
+        $customer->loadMissing('package:id,name,price');
+        $normalizedMonth = $invoiceMonth->copy()->startOfMonth();
+
+        $invoice = DB::transaction(
+            fn () => $this->createCustomerInvoice($customer, $normalizedMonth, $actor)
+        );
+
+        ActivityLog::create([
+            'branch_id' => $customer->branch_id,
+            'actor_user_id' => $actor?->id,
+            'entity_type' => 'invoice',
+            'entity_id' => $invoice->id,
+            'action' => $invoice->wasRecentlyCreated ? 'generate_customer_invoice' : 'customer_invoice_exists',
+            'metadata' => [
+                'customer_id' => $customer->id,
+                'invoice_month' => $normalizedMonth->toDateString(),
+                'created' => $invoice->wasRecentlyCreated,
+            ],
+            'created_at' => now(),
+        ]);
+
+        return [
+            'invoice' => $invoice,
+            'created' => $invoice->wasRecentlyCreated,
+        ];
+    }
+
+    /**
      * @param  array<int, string>  $statuses
+     * @param  int|array<int, int>|null  $branchScope
      * @return array{invoice_month: string, customer_statuses: array<int, string>, created_count: int}
      */
-    public function generate(Carbon $invoiceMonth, array $statuses = [], ?User $actor = null, ?int $branchId = null): array
+    public function generate(Carbon $invoiceMonth, array $statuses = [], ?User $actor = null, int|array|null $branchScope = null): array
     {
         $normalizedMonth = $invoiceMonth->copy()->startOfMonth();
         $normalizedStatuses = collect($statuses)
@@ -30,8 +63,17 @@ class MonthlyInvoiceGenerator
 
         $customersQuery = Customer::query()->with('package:id,name,price');
 
-        if ($branchId) {
-            $customersQuery->where('branch_id', $branchId);
+        $branchIds = $branchScope === null
+            ? null
+            : collect(is_array($branchScope) ? $branchScope : [$branchScope])
+                ->map(fn ($branchId) => (int) $branchId)
+                ->filter(fn ($branchId) => $branchId > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+        if ($branchIds !== null) {
+            $customersQuery->whereIn('branch_id', $branchIds);
         }
 
         if (!empty($normalizedStatuses)) {
@@ -50,30 +92,7 @@ class MonthlyInvoiceGenerator
 
         DB::transaction(function () use ($customers, $normalizedMonth, $actor, &$createdCount) {
             foreach ($customers as $customer) {
-                $billingDay = max(1, min(31, (int) $customer->billing_day_of_month));
-                $daysInMonth = $normalizedMonth->daysInMonth;
-                $dueDate = $normalizedMonth->copy()->day(min($billingDay, $daysInMonth));
-                $packagePrice = (float) ($customer->package?->price ?? 0);
-
-                $invoice = Invoice::firstOrCreate(
-                    [
-                        'customer_id' => $customer->id,
-                        'invoice_month' => $normalizedMonth->toDateString(),
-                    ],
-                    [
-                        'branch_id' => $customer->branch_id,
-                        'wifi_package_id' => $customer->wifi_package_id,
-                        'due_date' => $dueDate->toDateString(),
-                        'billing_day_of_month' => $billingDay,
-                        'package_name' => $customer->package?->name,
-                        'package_price' => $packagePrice,
-                        'total_amount' => $packagePrice,
-                        'paid_amount' => 0,
-                        'balance_amount' => $packagePrice,
-                        'status' => $dueDate->isPast() && $packagePrice > 0 ? 'overdue' : 'unpaid',
-                        'generated_by_user_id' => $actor?->id,
-                    ],
-                );
+                $invoice = $this->createCustomerInvoice($customer, $normalizedMonth, $actor);
 
                 if ($invoice->wasRecentlyCreated) {
                     $createdCount++;
@@ -82,7 +101,7 @@ class MonthlyInvoiceGenerator
         });
 
         ActivityLog::create([
-            'branch_id' => $branchId ?: $actor?->branch_id,
+            'branch_id' => count($branchIds ?? []) === 1 ? $branchIds[0] : null,
             'actor_user_id' => $actor?->id,
             'entity_type' => 'invoice_batch',
             'entity_id' => null,
@@ -91,7 +110,7 @@ class MonthlyInvoiceGenerator
                 'invoice_month' => $normalizedMonth->toDateString(),
                 'created_count' => $createdCount,
                 'customer_statuses' => $normalizedStatuses,
-                'branch_id' => $branchId,
+                'branch_ids' => $branchIds,
                 'source' => $actor ? 'manual' : 'scheduled',
             ],
             'created_at' => now(),
@@ -102,5 +121,32 @@ class MonthlyInvoiceGenerator
             'customer_statuses' => $normalizedStatuses,
             'created_count' => $createdCount,
         ];
+    }
+
+    private function createCustomerInvoice(Customer $customer, Carbon $normalizedMonth, ?User $actor): Invoice
+    {
+        $billingDay = max(1, min(31, (int) $customer->billing_day_of_month));
+        $dueDate = $normalizedMonth->copy()->day(min($billingDay, $normalizedMonth->daysInMonth));
+        $packagePrice = (float) ($customer->package?->price ?? 0);
+
+        return Invoice::firstOrCreate(
+            [
+                'customer_id' => $customer->id,
+                'invoice_month' => $normalizedMonth->toDateString(),
+            ],
+            [
+                'branch_id' => $customer->branch_id,
+                'wifi_package_id' => $customer->wifi_package_id,
+                'due_date' => $dueDate->toDateString(),
+                'billing_day_of_month' => $billingDay,
+                'package_name' => $customer->package?->name,
+                'package_price' => $packagePrice,
+                'total_amount' => $packagePrice,
+                'paid_amount' => 0,
+                'balance_amount' => $packagePrice,
+                'status' => $dueDate->isPast() && $packagePrice > 0 ? 'overdue' : 'unpaid',
+                'generated_by_user_id' => $actor?->id,
+            ],
+        );
     }
 }

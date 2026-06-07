@@ -32,11 +32,12 @@ const formatCurrency = (value) => currency.format(Number(value || 0));
 const formatDate = (value) => (value ? String(value).slice(0, 10) : '-');
 const formatMonth = (value) => (value ? String(value).slice(0, 7) : '-');
 
-export default function ReportOverdue({ filters, branches, canFilterBranch, summary, overdueAging, overdueInvoices }) {
+export default function ReportOverdue({ filters, branches, canFilterBranch, summary, overdueAging, overdueInvoices, canManageCustomers }) {
     const { admin_app_url } = usePage().props;
     const rows = useMemo(() => overdueInvoices?.data || [], [overdueInvoices]);
     const [month, setMonth] = useState(filters?.month || new Date().toISOString().slice(0, 7));
     const [branchId, setBranchId] = useState(filters?.branch_id || '');
+    const [query, setQuery] = useState(filters?.q || '');
     const perPage = Number(filters?.per_page || overdueInvoices?.per_page || 15);
 
     const applyFilters = () => {
@@ -45,6 +46,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
             {
                 month: month || undefined,
                 branch_id: branchId || undefined,
+                q: query || undefined,
                 per_page: perPage,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -55,6 +57,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
         const defaultMonth = new Date().toISOString().slice(0, 7);
         setMonth(defaultMonth);
         setBranchId('');
+        setQuery('');
         router.get(
             `${admin_app_url}/reports/overdue`,
             { month: defaultMonth, per_page: perPage },
@@ -63,7 +66,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
     };
 
     const openCustomer = (customerId) => {
-        if (!customerId) return;
+        if (!customerId || !canManageCustomers) return;
 
         router.get(`${admin_app_url}/customers/${customerId}`);
     };
@@ -76,7 +79,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                 <PageHeader
                     eyebrow="Billing"
                     title="Overdue list"
-                    description="Review overdue invoices in one dedicated page with pagination, branch scope, and direct customer navigation."
+                    description={`Outstanding invoices overdue as of ${formatDate(filters?.as_of_date)}. Future due dates are excluded.`}
                     actions={
                         <Stack direction="row" spacing={1}>
                             <Button
@@ -101,7 +104,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                         gap: 1,
                         gridTemplateColumns: {
                             xs: '1fr',
-                            md: 'repeat(4, minmax(0, 1fr))',
+                            md: 'repeat(3, minmax(0, 1fr))',
                         },
                     }}
                 >
@@ -114,6 +117,17 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                             Invoice rows currently overdue in the selected scope.
+                        </Typography>
+                    </AppSurface>
+                    <AppSurface sx={{ p: 1.5 }}>
+                        <Typography variant="caption" color="text.secondary">
+                            Affected customers
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 820, mt: 0.5, mb: 0.5 }}>
+                            {summary?.customer_count ?? 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Unique customers requiring collection follow-up.
                         </Typography>
                     </AppSurface>
                     <AppSurface sx={{ p: 1.5 }}>
@@ -136,7 +150,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                 {bucket.customer_count ?? 0} customer(s)
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                            Continuous overdue balance {formatCurrency(bucket.balance_amount)}
+                                Overdue balance {formatCurrency(bucket.balance_amount)}
                             </Typography>
                         </AppSurface>
                     ))}
@@ -149,11 +163,28 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                         <>
                             <TextField
                                 size="small"
+                                label="Search"
+                                placeholder="Invoice, customer, code, phone"
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') applyFilters();
+                                }}
+                                sx={{ minWidth: { xs: '100%', sm: 220 } }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <TextField
+                                size="small"
                                 type="month"
                                 label="Month"
                                 value={month}
                                 onChange={(event) => setMonth(event.target.value)}
-                                InputLabelProps={{ shrink: true }}
                                 slotProps={{ inputLabel: { shrink: true } }}
                             />
                             {canFilterBranch ? (
@@ -197,6 +228,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                         <TableCell>Invoice</TableCell>
                                         <TableCell>Customer</TableCell>
                                         <TableCell>Due</TableCell>
+                                        <TableCell align="right">Days overdue</TableCell>
                                         <TableCell>Month</TableCell>
                                         <TableCell align="right">Balance</TableCell>
                                         <TableCell>Status</TableCell>
@@ -216,7 +248,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                                     component="button"
                                                     type="button"
                                                     onClick={() => openCustomer(invoice.customer?.id)}
-                                                    disabled={!invoice.customer?.id}
+                                                    disabled={!invoice.customer?.id || !canManageCustomers}
                                                     sx={{
                                                         width: '100%',
                                                         p: 0,
@@ -225,7 +257,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                                         bgcolor: 'transparent',
                                                         textAlign: 'left',
                                                         color: 'inherit',
-                                                        cursor: invoice.customer?.id ? 'pointer' : 'default',
+                                                        cursor: invoice.customer?.id && canManageCustomers ? 'pointer' : 'default',
                                                     }}
                                                 >
                                                     <Typography
@@ -233,7 +265,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                                             fontWeight: 700,
                                                             transition: 'color 0.18s ease',
                                                             '&:hover': {
-                                                                color: invoice.customer?.id ? 'primary.main' : 'inherit',
+                                                                color: invoice.customer?.id && canManageCustomers ? 'primary.main' : 'inherit',
                                                             },
                                                         }}
                                                     >
@@ -245,10 +277,11 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                                 </Typography>
                                             </TableCell>
                                             <TableCell>{formatDate(invoice.due_date)}</TableCell>
+                                            <TableCell align="right">{invoice.days_overdue ?? '-'}</TableCell>
                                             <TableCell>{formatMonth(invoice.invoice_month)}</TableCell>
                                             <TableCell align="right">{formatCurrency(invoice.balance_amount)}</TableCell>
                                             <TableCell>
-                                                <StatusBadge status={invoice.status} label={invoice.status || 'overdue'} />
+                                                <StatusBadge status="overdue" label="overdue" />
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -273,7 +306,7 @@ export default function ReportOverdue({ filters, branches, canFilterBranch, summ
                                 Follow-up note
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Use this page for detailed overdue invoice follow-up, and keep the main report page focused on collection summary and aging analysis.
+                                Prioritize the oldest balances first, then open the customer record to generate invoices or record payment when your role permits it.
                             </Typography>
                         </Box>
                         <Box>

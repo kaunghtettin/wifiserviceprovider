@@ -201,16 +201,6 @@ export default function BranchIndex({ branches }) {
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={!!errors.name}
                                 helperText={errors.name}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 required
                             />
                             <TextField
@@ -219,16 +209,6 @@ export default function BranchIndex({ branches }) {
                                 onChange={(e) => setData('code', e.target.value)}
                                 error={!!errors.code}
                                 helperText={errors.code}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                             />
                             <TextField
                                 label="Phone"
@@ -236,16 +216,6 @@ export default function BranchIndex({ branches }) {
                                 onChange={(e) => setData('phone', e.target.value)}
                                 error={!!errors.phone}
                                 helperText={errors.phone}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                             />
                             <TextField
                                 label="Address"
@@ -253,16 +223,6 @@ export default function BranchIndex({ branches }) {
                                 onChange={(e) => setData('address', e.target.value)}
                                 error={!!errors.address}
                                 helperText={errors.address}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 multiline
                                 minRows={3}
                             />

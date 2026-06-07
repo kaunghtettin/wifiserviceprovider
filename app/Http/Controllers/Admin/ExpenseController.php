@@ -22,6 +22,8 @@ class ExpenseController extends Controller
         $category = trim((string) $request->query('category', ''));
         $month = trim((string) $request->query('month', now()->format('Y-m')));
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
+        $branchIds = $user?->accessibleBranchIds() ?? [];
+        $canViewAllBranches = (bool) $user?->canViewAllBranches();
         $categories = ExpenseCategory::query()
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
@@ -31,8 +33,8 @@ class ExpenseController extends Controller
             ->orderByDesc('expense_date')
             ->orderByDesc('id');
 
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $expensesQuery->where('branch_id', $user->branch_id);
+        if (!$canViewAllBranches) {
+            $expensesQuery->whereIn('branch_id', $branchIds);
         }
 
         if ($search !== '') {
@@ -72,8 +74,8 @@ class ExpenseController extends Controller
         ])->withQueryString();
 
         $summaryQuery = Expense::query();
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $summaryQuery->where('branch_id', $user->branch_id);
+        if (!$canViewAllBranches) {
+            $summaryQuery->whereIn('branch_id', $branchIds);
         }
         if ($month !== '') {
             try {
@@ -84,14 +86,16 @@ class ExpenseController extends Controller
             }
         }
 
-        $branches = $user?->hasRole('super_admin')
-            ? Branch::query()->orderBy('name')->get(['id', 'name'])
-            : [];
+        $branches = Branch::query()
+            ->when(!$canViewAllBranches, fn ($query) => $query->whereIn('id', $branchIds))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $canAssignBranch = $canViewAllBranches || count($branchIds) > 1;
 
         return Inertia::render('Expenses/Index', [
             'expenses' => $expenses,
             'branches' => $branches,
-            'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
+            'canAssignBranch' => $canAssignBranch,
             'filters' => [
                 'q' => $search,
                 'category' => $category,
@@ -114,11 +118,9 @@ class ExpenseController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
-        $branchId = $user?->hasRole('super_admin')
-            ? (int) $request->input('branch_id')
-            : (int) ($user?->branch_id ?: 0);
+        $branchId = (int) ($request->input('branch_id') ?: $user?->soleBranchId());
 
-        if ($branchId <= 0) {
+        if ($branchId <= 0 || !$user?->canAccessBranch($branchId)) {
             abort(422, 'Branch is required.');
         }
 
@@ -161,15 +163,13 @@ class ExpenseController extends Controller
     public function update(Request $request, Expense $expense): RedirectResponse
     {
         $user = $request->user();
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id && (int) $expense->branch_id !== (int) $user->branch_id) {
+        if (!$user?->canAccessBranch((int) $expense->branch_id)) {
             abort(403);
         }
 
-        $branchId = $user?->hasRole('super_admin')
-            ? (int) $request->input('branch_id')
-            : (int) $expense->branch_id;
+        $branchId = (int) ($request->input('branch_id') ?: $expense->branch_id);
 
-        if ($branchId <= 0) {
+        if ($branchId <= 0 || !$user?->canAccessBranch($branchId)) {
             abort(422, 'Branch is required.');
         }
 
@@ -208,7 +208,7 @@ class ExpenseController extends Controller
     public function destroy(Request $request, Expense $expense): RedirectResponse
     {
         $user = $request->user();
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id && (int) $expense->branch_id !== (int) $user->branch_id) {
+        if (!$user?->canAccessBranch((int) $expense->branch_id)) {
             abort(403);
         }
 

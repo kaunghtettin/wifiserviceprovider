@@ -23,12 +23,10 @@ class UserController extends Controller
         $query = User::query()->with(['branches:id,name', 'role:id,name'])->orderByDesc('id');
 
         if (!$authUser?->hasRole('super_admin') && !$authUser?->hasPermission('branches.view_all')) {
-            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
-            if (!empty($authBranchIds)) {
-                $query->whereHas('branches', function ($q) use ($authBranchIds) {
-                    $q->whereIn('branches.id', $authBranchIds);
-                });
-            }
+            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
+            $query->whereHas('branches', function ($q) use ($authBranchIds) {
+                $q->whereIn('branches.id', $authBranchIds);
+            });
         }
 
         if ($search !== '') {
@@ -106,7 +104,9 @@ class UserController extends Controller
             }
         }
 
-        $branchIds = $authUser?->hasRole('super_admin') ? ($data['branch_ids'] ?? []) : [];
+        $branchIds = $authUser?->hasRole('super_admin')
+            ? ($data['branch_ids'] ?? [])
+            : ($authUser?->accessibleBranchIds() ?? []);
 
         $user = User::create([
             'role_id' => $data['role_id'],
@@ -133,9 +133,9 @@ class UserController extends Controller
         }
 
         if (!$authUser?->hasRole('super_admin')) {
-            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
-            $targetBranchIds = $user->branches()->pluck('branches.id')->all() ?? [];
-            if (!empty($authBranchIds) && empty(array_intersect($authBranchIds, $targetBranchIds))) {
+            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
+            $targetBranchIds = $user->accessibleBranchIds();
+            if (empty(array_intersect($authBranchIds, $targetBranchIds))) {
                 abort(403);
             }
         }
@@ -196,9 +196,9 @@ class UserController extends Controller
         }
 
         if (!$authUser?->hasRole('super_admin')) {
-            $authBranchIds = $authUser?->branches()->pluck('branches.id')->all() ?? [];
-            $targetBranchIds = $user->branches()->pluck('branches.id')->all() ?? [];
-            if (!empty($authBranchIds) && empty(array_intersect($authBranchIds, $targetBranchIds))) {
+            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
+            $targetBranchIds = $user->accessibleBranchIds();
+            if (empty(array_intersect($authBranchIds, $targetBranchIds))) {
                 abort(403);
             }
         }
@@ -212,4 +212,3 @@ class UserController extends Controller
         return redirect()->route('admin.users.index');
     }
 }
-

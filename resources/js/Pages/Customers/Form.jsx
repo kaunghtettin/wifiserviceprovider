@@ -98,16 +98,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                         onChange={(e) => setData('branch_id', e.target.value)}
                                     error={!!errors.branch_id}
                                     helperText={errors.branch_id}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                         sx={{ flex: 1 }}
                                         required
                                     >
@@ -125,16 +115,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('wifi_package_id', e.target.value)}
                                     error={!!errors.wifi_package_id}
                                     helperText={errors.wifi_package_id}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 >
                                     <MenuItem value="">No package</MenuItem>
@@ -153,16 +133,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={!!errors.name}
                                     helperText={errors.name}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -172,16 +142,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('phone', e.target.value)}
                                     error={!!errors.phone}
                                     helperText={errors.phone}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -191,16 +151,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('nrc', e.target.value)}
                                     error={!!errors.nrc}
                                     helperText={errors.nrc}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 />
                             </Stack>
@@ -213,16 +163,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('billing_day_of_month', e.target.value)}
                                     error={!!errors.billing_day_of_month}
                                     helperText={errors.billing_day_of_month}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 >
@@ -247,18 +187,7 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     }}
                                     error={!!errors.installation_date}
                                     helperText={errors.installation_date}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
-                                    InputLabelProps={{ shrink: true }}
                                     slotProps={{ inputLabel: { shrink: true } }}
                                 />
                                 <TextField
@@ -268,16 +197,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('status', e.target.value)}
                                     error={!!errors.status}
                                     helperText={errors.status}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 >
@@ -295,16 +214,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('router_sn', e.target.value)}
                                     error={!!errors.router_sn}
                                     helperText={errors.router_sn}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 />
                                 <TextField
@@ -313,16 +222,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('gps_lat', e.target.value)}
                                     error={!!errors.gps_lat}
                                     helperText={errors.gps_lat}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 />
                                 <TextField
@@ -331,16 +230,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('gps_lng', e.target.value)}
                                     error={!!errors.gps_lng}
                                     helperText={errors.gps_lng}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 />
                             </Stack>
@@ -351,16 +240,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 onChange={(e) => setData('address', e.target.value)}
                                     error={!!errors.address}
                                     helperText={errors.address}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 multiline
                                 minRows={2}
                             />
@@ -371,16 +250,6 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                 onChange={(e) => setData('notes', e.target.value)}
                                     error={!!errors.notes}
                                     helperText={errors.notes}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     multiline
                                 minRows={2}
                             />

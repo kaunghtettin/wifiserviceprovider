@@ -208,16 +208,6 @@ export default function ExpenseCategoryIndex({ categories }) {
                                 onChange={(event) => setData('name', event.target.value)}
                                 error={!!errors.name}
                                 helperText={errors.name || 'The slug is generated automatically from the category name.'}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 required
                             />
                             <TextField
@@ -226,16 +216,6 @@ export default function ExpenseCategoryIndex({ categories }) {
                                 onChange={(event) => setData('description', event.target.value)}
                                 error={!!errors.description}
                                 helperText={errors.description}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 multiline
                                 minRows={3}
                             />

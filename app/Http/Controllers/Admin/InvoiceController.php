@@ -28,6 +28,7 @@ class InvoiceController extends Controller
         $status = trim((string) $request->query('status', ''));
         $month = trim((string) $request->query('month', now()->format('Y-m')));
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
+        $branchIds = $user?->accessibleBranchIds() ?? [];
 
         $invoicesQuery = Invoice::query()
             ->with([
@@ -38,8 +39,8 @@ class InvoiceController extends Controller
             ->orderByDesc('invoice_month')
             ->orderByDesc('id');
 
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $invoicesQuery->where('branch_id', $user->branch_id);
+        if (!$user?->canViewAllBranches()) {
+            $invoicesQuery->whereIn('branch_id', $branchIds);
         }
 
         if ($search !== '') {
@@ -92,8 +93,8 @@ class InvoiceController extends Controller
         ])->withQueryString();
 
         $summaryQuery = Invoice::query();
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $summaryQuery->where('branch_id', $user->branch_id);
+        if (!$user?->canViewAllBranches()) {
+            $summaryQuery->whereIn('branch_id', $branchIds);
         }
         if ($month !== '') {
             try {
@@ -132,11 +133,11 @@ class InvoiceController extends Controller
 
         $invoiceMonth = Carbon::createFromFormat('Y-m', $data['month'])->startOfMonth();
         $statuses = ['active'];
-        $branchId = !$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all')
-            ? (int) ($user?->branch_id ?: 0)
-            : null;
+        $branchScope = $user?->canViewAllBranches()
+            ? null
+            : ($user?->accessibleBranchIds() ?? []);
 
-        $result = $this->monthlyInvoiceGenerator->generate($invoiceMonth, $statuses, $user, $branchId);
+        $result = $this->monthlyInvoiceGenerator->generate($invoiceMonth, $statuses, $user, $branchScope);
 
         return redirect()
             ->route('admin.invoices.index', ['month' => $data['month']])
@@ -164,8 +165,8 @@ class InvoiceController extends Controller
 
         return Invoice::query()
             ->when(
-                !$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id,
-                fn (Builder $query) => $query->where('branch_id', $user->branch_id)
+                !$user?->canViewAllBranches(),
+                fn (Builder $query) => $query->whereIn('branch_id', $user?->accessibleBranchIds() ?? [])
             )
             ->findOrFail($invoiceId);
     }

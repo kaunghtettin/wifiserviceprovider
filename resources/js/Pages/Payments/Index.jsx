@@ -198,7 +198,6 @@ export default function PaymentIndex({ payments, openInvoices, filters, summary 
                                 label="Month"
                                 value={month}
                                 onChange={(event) => setMonth(event.target.value)}
-                                InputLabelProps={{ shrink: true }}
                                 slotProps={{ inputLabel: { shrink: true } }}
                             />
                             <TextField select size="small" label="Method" value={method} onChange={(event) => setMethod(event.target.value)} sx={{ minWidth: 140 }}>
@@ -432,7 +431,6 @@ export default function PaymentIndex({ payments, openInvoices, filters, summary 
                                     helperText={errors.paid_at}
                                     required
                                     sx={{ flex: 1 }}
-                                    InputLabelProps={{ shrink: true }}
                                     slotProps={{ inputLabel: { shrink: true } }}
                                 />
                             </Stack>

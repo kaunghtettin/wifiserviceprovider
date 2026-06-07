@@ -45,7 +45,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'role' => fn () => $request->user()?->role?->name,
-                'branch_id' => fn () => $request->user()?->branch_id,
+                'branch_id' => fn () => $request->user()?->soleBranchId(),
+                'branch_ids' => fn () => $request->user()?->accessibleBranchIds() ?? [],
                 'permissions' => fn () => $request->user()?->role?->permissions?->pluck('key')?->values() ?? [],
                 'is_super_admin' => fn () => (bool) $request->user()?->hasRole('super_admin'),
             ],
@@ -57,14 +58,15 @@ class HandleInertiaRequests extends Middleware
                         return 0;
                     }
 
-                    return Notification::query()
+                    $query = Notification::query()
                         ->where('type', 'internal')
-                        ->whereNull('read_at')
-                        ->when(
-                            !$user->hasRole('super_admin') && !$user->hasPermission('branches.view_all') && $user->branch_id,
-                            fn ($query) => $query->where('branch_id', $user->branch_id)
-                        )
-                        ->count();
+                        ->whereNull('read_at');
+
+                    if (!$user->canViewAllBranches()) {
+                        $query->whereIn('branch_id', $user->accessibleBranchIds());
+                    }
+
+                    return $query->count();
                 },
             ],
         ]);

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\Billing\PaymentRecorder;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +16,13 @@ use Inertia\Response;
 
 class PaymentController extends Controller
 {
+    private PaymentRecorder $paymentRecorder;
+
+    public function __construct(PaymentRecorder $paymentRecorder)
+    {
+        $this->paymentRecorder = $paymentRecorder;
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -23,6 +30,7 @@ class PaymentController extends Controller
         $method = trim((string) $request->query('method', ''));
         $month = trim((string) $request->query('month', now()->format('Y-m')));
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
+        $branchIds = $user?->accessibleBranchIds() ?? [];
 
         $paymentsQuery = Payment::query()
             ->with([
@@ -34,8 +42,8 @@ class PaymentController extends Controller
             ->orderByDesc('paid_at')
             ->orderByDesc('id');
 
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $paymentsQuery->where('branch_id', $user->branch_id);
+        if (!$user?->canViewAllBranches()) {
+            $paymentsQuery->whereIn('branch_id', $branchIds);
         }
 
         if ($search !== '') {
@@ -86,8 +94,8 @@ class PaymentController extends Controller
             ->orderByDesc('invoice_month')
             ->orderByDesc('id');
 
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $openInvoicesQuery->where('branch_id', $user->branch_id);
+        if (!$user?->canViewAllBranches()) {
+            $openInvoicesQuery->whereIn('branch_id', $branchIds);
         }
 
         $openInvoices = $openInvoicesQuery->get([
@@ -102,8 +110,8 @@ class PaymentController extends Controller
         ]);
 
         $summaryQuery = Payment::query();
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id) {
-            $summaryQuery->where('branch_id', $user->branch_id);
+        if (!$user?->canViewAllBranches()) {
+            $summaryQuery->whereIn('branch_id', $branchIds);
         }
         if ($month !== '') {
             try {
@@ -146,45 +154,11 @@ class PaymentController extends Controller
         ]);
 
         $invoice = Invoice::query()->with('customer')->findOrFail($data['invoice_id']);
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id && (int) $invoice->branch_id !== (int) $user->branch_id) {
+        if (!$user?->canAccessBranch((int) $invoice->branch_id)) {
             abort(403);
         }
 
-        $amount = round((float) $data['amount'], 2);
-        $balance = round((float) $invoice->balance_amount, 2);
-        if ($amount - $balance > 0.00001) {
-            return back()->withErrors(['amount' => 'Payment amount cannot exceed the invoice balance.']);
-        }
-
-        $payment = Payment::create([
-            'branch_id' => $invoice->branch_id,
-            'invoice_id' => $invoice->id,
-            'customer_id' => $invoice->customer_id,
-            'amount' => $amount,
-            'paid_at' => $data['paid_at'],
-            'method' => $data['method'],
-            'reference_no' => $data['reference_no'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'received_by_user_id' => $user?->id,
-        ]);
-
-        $invoice->refreshPaymentState();
-
-        ActivityLog::create([
-            'branch_id' => $invoice->branch_id,
-            'actor_user_id' => $user?->id,
-            'entity_type' => 'payment',
-            'entity_id' => $payment->id,
-            'action' => 'record_payment',
-            'metadata' => [
-                'invoice_id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'customer_id' => $invoice->customer_id,
-                'amount' => $amount,
-                'method' => $payment->method,
-            ],
-            'created_at' => now(),
-        ]);
+        $this->paymentRecorder->record($invoice, $data, $user);
 
         if (($data['return_to'] ?? null) === 'back') {
             return back()->with('success', 'Payment recorded successfully.');
@@ -216,8 +190,8 @@ class PaymentController extends Controller
 
         return Payment::query()
             ->when(
-                !$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all') && $user?->branch_id,
-                fn (Builder $query) => $query->where('branch_id', $user->branch_id)
+                !$user?->canViewAllBranches(),
+                fn (Builder $query) => $query->whereIn('branch_id', $user?->accessibleBranchIds() ?? [])
             )
             ->findOrFail($paymentId);
     }

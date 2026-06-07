@@ -270,16 +270,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                         onChange={(e) => setData('role_id', e.target.value)}
                                         error={!!errors.role_id}
                                         helperText={errors.role_id}
-                                        slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                         required
                                         sx={{ flex: 1 }}
                                     >
@@ -304,16 +294,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                                 label="Branches"
                                                 error={!!errors.branch_ids}
                                                 helperText={errors.branch_ids}
-                                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                             />
                                         )}
                                         renderTags={(tagValue, getTagProps) =>
@@ -338,16 +318,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={!!errors.name}
                                     helperText={errors.name}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -357,16 +327,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('email', e.target.value)}
                                     error={!!errors.email}
                                     helperText={errors.email}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 />
@@ -379,16 +339,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('phone', e.target.value)}
                                     error={!!errors.phone}
                                     helperText={errors.phone}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     sx={{ flex: 1 }}
                                 />
                                 <TextField
@@ -398,16 +348,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                     onChange={(e) => setData('status', e.target.value)}
                                     error={!!errors.status}
                                     helperText={errors.status}
-                                    slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                     required
                                     sx={{ flex: 1 }}
                                 >
@@ -423,16 +363,6 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                 onChange={(e) => setData('password', e.target.value)}
                                 error={!!errors.password}
                                 helperText={errors.password}
-                                slotProps={{ 
-  formHelperText: { sx: { mt: 0.5, minHeight: '1.25em' } },
-  inputLabel: {
-    sx: {
-      '&.MuiInputLabel-outlined': {
-        transform: 'translate(14px, 12px) scale(1)',
-      },
-    }
-  }
-}}
                                 required={!editing}
                             />
                         </Stack>

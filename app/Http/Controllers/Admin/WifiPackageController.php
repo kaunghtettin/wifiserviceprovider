@@ -16,16 +16,14 @@ class WifiPackageController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $branchIds = $user?->accessibleBranchIds() ?? [];
+        $canViewAllBranches = (bool) $user?->canViewAllBranches();
 
         $query = WifiPackage::query()->with('branch:id,name')->orderBy('name');
 
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all')) {
-            $branchId = $user?->branch_id;
-            $query->where(function ($q) use ($branchId) {
-                $q->whereNull('branch_id');
-                if ($branchId) {
-                    $q->orWhere('branch_id', $branchId);
-                }
+        if (!$canViewAllBranches) {
+            $query->where(function ($q) use ($branchIds) {
+                $q->whereNull('branch_id')->orWhereIn('branch_id', $branchIds);
             });
         }
 
@@ -41,15 +39,15 @@ class WifiPackageController extends Controller
             'created_at',
         ]);
 
-        $branches = [];
-        if ($user?->hasRole('super_admin')) {
-            $branches = Branch::query()->orderBy('name')->get(['id', 'name']);
-        }
+        $branches = Branch::query()
+            ->when(!$canViewAllBranches, fn ($branchQuery) => $branchQuery->whereIn('id', $branchIds))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return Inertia::render('Packages/Index', [
             'packages' => $packages,
             'branches' => $branches,
-            'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
+            'canAssignBranch' => $canViewAllBranches || count($branchIds) > 1,
         ]);
     }
 
@@ -57,9 +55,13 @@ class WifiPackageController extends Controller
     {
         $user = $request->user();
 
-        $branchId = $user?->hasRole('super_admin')
+        $branchId = $user?->canViewAllBranches()
             ? ($request->input('branch_id') ?: null)
-            : ($user?->branch_id ?: null);
+            : ($request->input('branch_id') ?: $user?->soleBranchId());
+
+        if (!$user?->canViewAllBranches() && (!$branchId || !$user?->canAccessBranch((int) $branchId))) {
+            abort(422, 'Branch is required.');
+        }
 
         $request->merge(['branch_id' => $branchId]);
 
@@ -87,16 +89,16 @@ class WifiPackageController extends Controller
     {
         $user = $request->user();
 
-        $branchId = $user?->hasRole('super_admin')
-            ? ($request->input('branch_id') ?: null)
-            : ($package->branch_id ?: $user?->branch_id ?: null);
-
-        if (!$user?->hasRole('super_admin') && $package->branch_id && $user?->branch_id && (int) $package->branch_id !== (int) $user->branch_id) {
+        if (!$user?->canViewAllBranches() && (!$package->branch_id || !$user?->canAccessBranch((int) $package->branch_id))) {
             abort(403);
         }
 
-        if (!$user?->hasRole('super_admin') && !$package->branch_id && $user?->branch_id) {
-            $branchId = $user->branch_id;
+        $branchId = $user?->canViewAllBranches()
+            ? ($request->input('branch_id') ?: null)
+            : ($request->input('branch_id') ?: $package->branch_id);
+
+        if ($branchId && !$user?->canAccessBranch((int) $branchId)) {
+            abort(422, 'The selected branch is not available.');
         }
 
         $request->merge(['branch_id' => $branchId]);
@@ -127,7 +129,7 @@ class WifiPackageController extends Controller
     {
         $user = $request->user();
 
-        if (!$user?->hasRole('super_admin') && $package->branch_id && $user?->branch_id && (int) $package->branch_id !== (int) $user->branch_id) {
+        if (!$user?->canViewAllBranches() && (!$package->branch_id || !$user?->canAccessBranch((int) $package->branch_id))) {
             abort(403);
         }
 
@@ -136,4 +138,3 @@ class WifiPackageController extends Controller
         return redirect()->route('admin.packages.index');
     }
 }
-

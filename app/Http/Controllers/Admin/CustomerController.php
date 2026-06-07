@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\WifiPackage;
+use App\Services\Billing\MonthlyInvoiceGenerator;
+use App\Services\Billing\PaymentRecorder;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,22 +21,35 @@ class CustomerController extends Controller
 {
     private const FILTERABLE_STATUSES = ['active', 'pending', 'suspended', 'disconnected'];
 
+    private MonthlyInvoiceGenerator $invoiceGenerator;
+
+    private PaymentRecorder $paymentRecorder;
+
+    public function __construct(
+        MonthlyInvoiceGenerator $invoiceGenerator,
+        PaymentRecorder $paymentRecorder,
+    ) {
+        $this->invoiceGenerator = $invoiceGenerator;
+        $this->paymentRecorder = $paymentRecorder;
+    }
+
     private function canViewAllBranches(Request $request): bool
     {
         $user = $request->user();
 
-        return (bool) ($user?->hasRole('super_admin') || $user?->hasPermission('branches.view_all'));
+        return (bool) $user?->canViewAllBranches();
     }
 
     private function getSelectableBranches(Request $request)
     {
         $user = $request->user();
 
-        if ($user?->hasRole('super_admin')) {
-            return Branch::query()->orderBy('name')->get(['id', 'name']);
-        }
+        $branchIds = $user?->accessibleBranchIds() ?? [];
 
-        return [];
+        return Branch::query()
+            ->when(!$user?->canViewAllBranches(), fn ($query) => $query->whereIn('id', $branchIds))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     private function getFilterableBranches(Request $request)
@@ -48,8 +66,8 @@ class CustomerController extends Controller
         $user = $request->user();
 
         $packagesQuery = WifiPackage::query()->orderBy('name');
-        if (!$user?->hasRole('super_admin') && !$user?->hasPermission('branches.view_all')) {
-            $branchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+        if (!$user?->canViewAllBranches()) {
+            $branchIds = $user?->accessibleBranchIds() ?? [];
             $packagesQuery->where(function ($q) use ($branchIds) {
                 $q->whereNull('branch_id');
                 if (!empty($branchIds)) {
@@ -69,16 +87,14 @@ class CustomerController extends Controller
         $branchId = (int) $request->query('branch_id', 0);
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
         $canViewAllBranches = $this->canViewAllBranches($request);
+        $userBranchIds = $user?->accessibleBranchIds() ?? [];
 
         $customersQuery = Customer::query()
             ->with(['branch:id,name', 'package:id,name,speed_mbps,branch_id'])
             ->orderByDesc('id');
 
         if (!$canViewAllBranches) {
-            $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
-            if (!empty($userBranchIds)) {
-                $customersQuery->whereIn('branch_id', $userBranchIds);
-            }
+            $customersQuery->whereIn('branch_id', $userBranchIds);
         } elseif ($branchId > 0) {
             $customersQuery->where('branch_id', $branchId);
         }
@@ -126,7 +142,7 @@ class CustomerController extends Controller
             'branches' => $branches,
             'filterBranches' => $filterBranches,
             'packages' => $packages,
-            'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
+            'canAssignBranch' => $canViewAllBranches || count($userBranchIds) > 1,
             'canFilterBranch' => $canViewAllBranches,
             'filters' => [
                 'q' => $search,
@@ -196,11 +212,29 @@ class CustomerController extends Controller
 
         $invoiceSummaryQuery = $customer->invoices();
         $paymentSummaryQuery = $customer->payments();
+        $openInvoices = $customer->invoices()
+            ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+            ->orderByDesc('invoice_month')
+            ->orderByDesc('id')
+            ->get([
+                'id',
+                'invoice_number',
+                'invoice_month',
+                'due_date',
+                'total_amount',
+                'paid_amount',
+                'balance_amount',
+                'status',
+            ]);
+        $user = $request->user();
 
         return Inertia::render('Customers/Show', [
             'customer' => $customer,
             'invoiceHistory' => $invoiceHistory,
             'paymentHistory' => $paymentHistory,
+            'openInvoices' => $openInvoices,
+            'canOpenInvoiceModule' => (bool) ($user?->hasPermission('invoices.manage') || $user?->hasRole('super_admin')),
+            'canOpenPaymentModule' => (bool) ($user?->hasPermission('payments.manage') || $user?->hasRole('super_admin')),
             'historyFilters' => [
                 'invoice_page' => max((int) $request->query('invoice_page', 1), 1) > 1 ? max((int) $request->query('invoice_page', 1), 1) : '',
                 'invoice_per_page' => $invoicePerPage,
@@ -225,14 +259,14 @@ class CustomerController extends Controller
 
         $branches = $this->getSelectableBranches($request);
         $packages = $this->getSelectablePackages($request);
-        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+        $userBranchIds = $user?->accessibleBranchIds() ?? [];
 
         return Inertia::render('Customers/Form', [
             'mode' => 'create',
             'customer' => null,
             'branches' => $branches,
             'packages' => $packages,
-            'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
+            'canAssignBranch' => (bool) $user?->canViewAllBranches() || count($userBranchIds) > 1,
             'defaultBranchId' => count($userBranchIds) === 1 ? $userBranchIds[0] : null,
         ]);
     }
@@ -244,7 +278,7 @@ class CustomerController extends Controller
 
         $branches = $this->getSelectableBranches($request);
         $packages = $this->getSelectablePackages($request);
-        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+        $userBranchIds = $user?->accessibleBranchIds() ?? [];
 
         return Inertia::render('Customers/Form', [
             'mode' => 'edit',
@@ -267,7 +301,7 @@ class CustomerController extends Controller
             ]),
             'branches' => $branches,
             'packages' => $packages,
-            'canAssignBranch' => (bool) $user?->hasRole('super_admin'),
+            'canAssignBranch' => (bool) $user?->canViewAllBranches() || count($userBranchIds) > 1,
             'defaultBranchId' => count($userBranchIds) === 1 ? $userBranchIds[0] : null,
         ]);
     }
@@ -276,20 +310,9 @@ class CustomerController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->hasRole('super_admin')) {
-            $branchId = (int) $request->input('branch_id');
-        } else {
-            $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
-            if (count($userBranchIds) === 1) {
-                // Implicitly assign the only branch the user has access to
-                $branchId = $userBranchIds[0];
-            } else {
-                // User has 0 or multiple branches — require explicit selection (or error)
-                $branchId = (int) $request->input('branch_id');
-            }
-        }
+        $branchId = (int) ($request->input('branch_id') ?: $user?->soleBranchId());
 
-        if ($branchId <= 0) {
+        if ($branchId <= 0 || !$user?->canAccessBranch($branchId)) {
             abort(422, 'Branch is required.');
         }
 
@@ -300,7 +323,15 @@ class CustomerController extends Controller
 
         $data = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'wifi_package_id' => ['nullable', 'integer', 'exists:wifi_packages,id'],
+            'wifi_package_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('wifi_packages', 'id')->where(
+                    fn ($query) => $query
+                        ->whereNull('branch_id')
+                        ->orWhere('branch_id', $branchId)
+                ),
+            ],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:64'],
             'nrc' => ['nullable', 'string', 'max:64'],
@@ -315,9 +346,68 @@ class CustomerController extends Controller
             'created_by_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        Customer::create($data);
+        $customer = Customer::create($data);
 
-        return redirect()->route('admin.customers.index');
+        return redirect()
+            ->route('admin.customers.show', $customer)
+            ->with('success', 'Customer created. You can now generate the first invoice.');
+    }
+
+    public function generateInvoice(Request $request, Customer $customer): RedirectResponse
+    {
+        $customer = $this->findScopedCustomer($request, $customer->id)
+            ->load('package:id,name,price');
+
+        $data = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        if ($customer->status !== 'active') {
+            throw ValidationException::withMessages([
+                'month' => 'Only active customers can be invoiced.',
+            ]);
+        }
+
+        if (!$customer->package) {
+            throw ValidationException::withMessages([
+                'month' => 'Assign a package to this customer before generating an invoice.',
+            ]);
+        }
+
+        $result = $this->invoiceGenerator->generateForCustomer(
+            $customer,
+            Carbon::createFromFormat('Y-m', $data['month'])->startOfMonth(),
+            $request->user(),
+        );
+
+        if (!$result['created']) {
+            return back()->with('warning', 'An invoice already exists for this customer and month.');
+        }
+
+        return back()->with('success', 'Customer invoice generated successfully.');
+    }
+
+    public function recordPayment(Request $request, Customer $customer): RedirectResponse
+    {
+        $customer = $this->findScopedCustomer($request, $customer->id);
+
+        $data = $request->validate([
+            'invoice_id' => ['required', 'integer'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'paid_at' => ['required', 'date'],
+            'method' => ['required', Rule::in(['cash', 'bank_transfer', 'other'])],
+            'reference_no' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $invoice = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+            ->findOrFail($data['invoice_id']);
+
+        $this->paymentRecorder->record($invoice, $data, $request->user());
+
+        return back()->with('success', 'Payment recorded successfully.');
     }
 
     public function update(Request $request, Customer $customer): RedirectResponse
@@ -325,8 +415,8 @@ class CustomerController extends Controller
         $user = $request->user();
         $customer = $this->findScopedCustomer($request, $customer->id);
 
-        $branchId = $user?->hasRole('super_admin') ? (int) $request->input('branch_id') : (int) $customer->branch_id;
-        if ($branchId <= 0) {
+        $branchId = (int) ($request->input('branch_id') ?: $customer->branch_id);
+        if ($branchId <= 0 || !$user?->canAccessBranch($branchId)) {
             abort(422, 'Branch is required.');
         }
 
@@ -334,7 +424,15 @@ class CustomerController extends Controller
 
         $data = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'wifi_package_id' => ['nullable', 'integer', 'exists:wifi_packages,id'],
+            'wifi_package_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('wifi_packages', 'id')->where(
+                    fn ($query) => $query
+                        ->whereNull('branch_id')
+                        ->orWhere('branch_id', $branchId)
+                ),
+            ],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:64'],
             'nrc' => ['nullable', 'string', 'max:64'],
@@ -365,11 +463,11 @@ class CustomerController extends Controller
     private function findScopedCustomer(Request $request, int $customerId): Customer
     {
         $user = $request->user();
-        $userBranchIds = $user?->branches()->pluck('branches.id')->all() ?? [];
+        $userBranchIds = $user?->accessibleBranchIds() ?? [];
 
         return Customer::query()
             ->when(
-                !$this->canViewAllBranches($request) && !empty($userBranchIds),
+                !$this->canViewAllBranches($request),
                 fn ($query) => $query->whereIn('branch_id', $userBranchIds)
             )
             ->findOrFail($customerId);

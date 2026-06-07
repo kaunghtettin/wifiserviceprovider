@@ -244,6 +244,7 @@ export const getAdminTheme = (mode = 'light') =>
                     root: ({ theme }) => ({
                         borderRadius: 12,
                         backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.38 : 0.7),
+                        color: theme.palette.text.primary,
                         transition: 'all 180ms ease',
                         '& .MuiOutlinedInput-notchedOutline': {
                             borderColor: alpha(theme.palette.text.primary, 0.09),
@@ -254,17 +255,60 @@ export const getAdminTheme = (mode = 'light') =>
                         '&.Mui-focused': {
                             boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.12)}`,
                         },
+                        '&.Mui-disabled': {
+                            backgroundColor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.035),
+                        },
                     }),
-                    input: {
+                    input: ({ theme }) => ({
                         paddingTop: 11,
                         paddingBottom: 11,
-                    },
+                        color: theme.palette.text.primary,
+                        WebkitTextFillColor: theme.palette.text.primary,
+                        caretColor: theme.palette.primary.main,
+                        '&::placeholder': {
+                            color: theme.palette.text.secondary,
+                            opacity: 0.72,
+                        },
+                        '&:-webkit-autofill': {
+                            WebkitTextFillColor: theme.palette.text.primary,
+                            WebkitBoxShadow: `0 0 0 100px ${theme.palette.background.paper} inset`,
+                            caretColor: theme.palette.text.primary,
+                            borderRadius: 'inherit',
+                        },
+                        '&.Mui-disabled': {
+                            color: theme.palette.text.secondary,
+                            WebkitTextFillColor: theme.palette.text.secondary,
+                        },
+                    }),
                 },
             },
             MuiInputLabel: {
                 styleOverrides: {
                     root: ({ theme }) => ({
                         color: alpha(theme.palette.text.secondary, 0.92),
+                        '&.Mui-focused': {
+                            color: theme.palette.primary.main,
+                        },
+                        '&.Mui-error': {
+                            color: theme.palette.error.main,
+                        },
+                        '&.Mui-disabled': {
+                            color: alpha(theme.palette.text.secondary, 0.68),
+                        },
+                    }),
+                },
+            },
+            MuiFormHelperText: {
+                styleOverrides: {
+                    root: ({ theme }) => ({
+                        marginTop: 5,
+                        marginLeft: 4,
+                        marginRight: 4,
+                        color: theme.palette.text.secondary,
+                        lineHeight: 1.35,
+                        '&.Mui-error': {
+                            color: theme.palette.error.main,
+                        },
                     }),
                 },
             },

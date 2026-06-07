@@ -246,7 +246,6 @@ export default function InvoiceIndex({ invoices, filters, summary }) {
                                 label="Month"
                                 value={month}
                                 onChange={(event) => setMonth(event.target.value)}
-                                InputLabelProps={{ shrink: true }}
                                 slotProps={{ inputLabel: { shrink: true } }}
                             />
                             <TextField select size="small" label="Status" value={status} onChange={(event) => setStatus(event.target.value)} sx={{ minWidth: 130 }}>
@@ -405,7 +404,6 @@ export default function InvoiceIndex({ invoices, filters, summary }) {
                                 onChange={(event) => setData('month', event.target.value)}
                                 error={!!errors.month}
                                 helperText={errors.month || 'Invoices are generated only for active customers.'}
-                                InputLabelProps={{ shrink: true }}
                                 slotProps={{ inputLabel: { shrink: true } }}
                                 required
                             />
@@ -460,7 +458,6 @@ export default function InvoiceIndex({ invoices, filters, summary }) {
                                     helperText={paymentErrors.paid_at}
                                     required
                                     sx={{ flex: 1 }}
-                                    InputLabelProps={{ shrink: true }}
                                     slotProps={{ inputLabel: { shrink: true } }}
                                 />
                             </Stack>

@@ -54,6 +54,11 @@ import { getAdminTheme } from '@/theme/adminTheme';
 
 const expandedWidth = 264;
 const collapsedWidth = 78;
+const drawerBackground = '#0b1220';
+const drawerSurface = '#111c2f';
+const drawerText = '#e5eefb';
+const drawerMutedText = '#91a4bf';
+const drawerBorder = 'rgba(148, 163, 184, 0.14)';
 
 const formatLabel = (value) =>
     String(value || '')
@@ -232,7 +237,14 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const profileMenuOpen = Boolean(profileAnchor);
 
     const sidebarContent = (
-        <Box sx={{ px: desktopOpen || isMobile ? 1 : 0.75, py: 1.25 }}>
+        <Box
+            sx={{
+                minHeight: '100%',
+                px: desktopOpen || isMobile ? 1 : 0.75,
+                py: 1.25,
+                color: drawerText,
+            }}
+        >
             <Stack
                 direction="row"
                 spacing={1.25}
@@ -249,8 +261,9 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         borderRadius: '12px',
                         display: 'grid',
                         placeItems: 'center',
-                        background: 'linear-gradient(135deg, rgba(59,130,246,0.22), rgba(59,130,246,0.06))',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'linear-gradient(135deg, rgba(59,130,246,0.34), rgba(139,92,246,0.16))',
+                        border: '1px solid rgba(147,197,253,0.18)',
+                        boxShadow: '0 10px 24px rgba(2, 6, 23, 0.34)',
                         flexShrink: 0,
                     }}
                 >
@@ -259,10 +272,10 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
                 {(desktopOpen || isMobile) && (
                     <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                        <Typography variant="subtitle1" sx={{ color: drawerText, fontWeight: 800, lineHeight: 1.1 }}>
                             Super
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" sx={{ color: drawerMutedText }}>
                             Excellent Wifi Service
                         </Typography>
                     </Box>
@@ -275,17 +288,18 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         mb: 2,
                         p: 1.25,
                         borderRadius: '12px',
-                        bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                        bgcolor: drawerSurface,
+                        border: `1px solid ${drawerBorder}`,
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025)',
                     }}
                 >
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                    <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: drawerMutedText }}>
                         Current Role
                     </Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    <Typography variant="subtitle2" sx={{ color: drawerText, fontWeight: 800 }}>
                         {formatLabel(roleName)}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{ color: drawerMutedText }}>
                         {authUser?.name || 'Administrator'}
                     </Typography>
                 </Box>
@@ -296,12 +310,12 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     {(desktopOpen || isMobile) ? (
                         <Typography
                             variant="overline"
-                            sx={{ px: 1, py: 0.75, display: 'block', color: 'text.secondary' }}
+                            sx={{ px: 1, py: 0.75, display: 'block', color: drawerMutedText }}
                         >
                             {group.title}
                         </Typography>
                     ) : (
-                        <Divider sx={{ my: 1.25, mx: 1.25 }} />
+                        <Divider sx={{ my: 1.25, mx: 1.25, borderColor: drawerBorder }} />
                     )}
                     <List dense disablePadding>
                         {group.items.map((item) => {
@@ -321,6 +335,19 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                         px: desktopOpen || isMobile ? 1.25 : 1,
                                         justifyContent: desktopOpen || isMobile ? 'flex-start' : 'center',
                                         position: 'relative',
+                                        color: active ? '#ffffff' : drawerMutedText,
+                                        bgcolor: active ? 'rgba(59, 130, 246, 0.20)' : 'transparent',
+                                        '&:hover': {
+                                            color: drawerText,
+                                            bgcolor: active ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.09)',
+                                        },
+                                        '&.Mui-selected': {
+                                            color: '#ffffff',
+                                            bgcolor: 'rgba(59, 130, 246, 0.20)',
+                                            '&:hover': {
+                                                bgcolor: 'rgba(59, 130, 246, 0.26)',
+                                            },
+                                        },
                                         '&::before': active
                                             ? {
                                                   content: '""',
@@ -330,7 +357,8 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                                   bottom: 10,
                                                   width: 4,
                                                   borderRadius: 999,
-                                                  background: theme.palette.primary.main,
+                                                  background: '#60a5fa',
+                                                  boxShadow: '0 0 14px rgba(96, 165, 250, 0.62)',
                                               }
                                             : undefined,
                                     }}
@@ -341,7 +369,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                             mr: desktopOpen || isMobile ? 1.25 : 0,
                                             justifyContent: 'center',
                                             width: 20,
-                                            color: active ? 'primary.main' : 'text.secondary',
+                                            color: active ? '#93c5fd' : drawerMutedText,
                                         }}
                                     >
                                         {item.icon}
@@ -355,7 +383,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                                                     fontSize: '0.92rem',
                                                 }}
                                             />
-                                            {active ? <ChevronRightIcon sx={{ fontSize: 18, color: 'primary.main' }} /> : null}
+                                            {active ? <ChevronRightIcon sx={{ fontSize: 18, color: '#93c5fd' }} /> : null}
                                         </>
                                     )}
                                 </ListItemButton>
@@ -387,7 +415,10 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 <AppBar
                     position="fixed"
                     sx={{
-                        zIndex: (muiTheme) => muiTheme.zIndex.drawer + 10,
+                        zIndex: (muiTheme) => ({
+                            xs: muiTheme.zIndex.appBar,
+                            md: muiTheme.zIndex.drawer + 10,
+                        }),
                         left: { md: desktopOpen ? expandedWidth + 16 : collapsedWidth + 16 },
                         width: {
                             xs: '100%',
@@ -558,11 +589,19 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     ModalProps={{ keepMounted: true }}
                     sx={{
                         display: { xs: 'block', md: 'none' },
+                        zIndex: (muiTheme) => muiTheme.zIndex.appBar + 20,
                         '& .MuiDrawer-paper': {
                             width: expandedWidth,
                             p: 0.75,
                             border: 'none',
-                            boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)',
+                            borderRadius: 0,
+                            color: drawerText,
+                            backgroundColor: drawerBackground,
+                            backgroundImage: 'linear-gradient(180deg, rgba(59,130,246,0.08), transparent 28%)',
+                            boxShadow: '0 24px 48px rgba(2, 6, 23, 0.42)',
+                            '&::-webkit-scrollbar-thumb': {
+                                background: 'rgba(148, 163, 184, 0.28)',
+                            },
                         },
                     }}
                 >
@@ -581,8 +620,15 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                             m: 1,
                             height: 'calc(100vh - 16px)',
                             border: 'none',
+                            color: drawerText,
+                            backgroundColor: drawerBackground,
+                            backgroundImage: 'linear-gradient(180deg, rgba(59,130,246,0.08), transparent 28%)',
+                            boxShadow: '0 18px 42px rgba(2, 6, 23, 0.24)',
                             overflowX: 'hidden',
                             transition: 'width 180ms ease',
+                            '&::-webkit-scrollbar-thumb': {
+                                background: 'rgba(148, 163, 184, 0.28)',
+                            },
                         },
                     }}
                 >
