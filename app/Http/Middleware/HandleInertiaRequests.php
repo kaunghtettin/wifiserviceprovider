@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Notification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -49,25 +48,6 @@ class HandleInertiaRequests extends Middleware
                 'branch_ids' => fn () => $request->user()?->accessibleBranchIds() ?? [],
                 'permissions' => fn () => $request->user()?->role?->permissions?->pluck('key')?->values() ?? [],
                 'is_super_admin' => fn () => (bool) $request->user()?->hasRole('super_admin'),
-            ],
-            'notifications' => [
-                'unread_count' => function () use ($request) {
-                    $user = $request->user();
-
-                    if (!$user) {
-                        return 0;
-                    }
-
-                    $query = Notification::query()
-                        ->where('type', 'internal')
-                        ->whereNull('read_at');
-
-                    if (!$user->canViewAllBranches()) {
-                        $query->whereIn('branch_id', $user->accessibleBranchIds());
-                    }
-
-                    return $query->count();
-                },
             ],
         ]);
     }

@@ -109,7 +109,6 @@ Route::name('admin.')->group(function () {
 
         Route::middleware('permission:dashboard.view')->group(function () {
             Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-            Route::get('/reports/overdue', [ReportController::class, 'overdue'])->name('reports.overdue');
             Route::get('/performance', [PerformanceController::class, 'index'])->name('performance.index');
         });
 

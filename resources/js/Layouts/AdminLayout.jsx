@@ -4,7 +4,6 @@ import {
     Alert,
     AppBar,
     Avatar,
-    Badge,
     Box,
     CssBaseline,
     Divider,
@@ -38,7 +37,6 @@ import {
     Logout as LogoutIcon,
     ManageAccounts as UsersIcon,
     Menu as MenuIcon,
-    NotificationsOutlined as NotificationsIcon,
     Paid as PaymentsIcon,
     People as CustomersIcon,
     Person as PersonIcon,
@@ -46,7 +44,6 @@ import {
     Shield as RolesIcon,
     Speed as PerformanceIcon,
     Sell as ExpenseCategoryIcon,
-    WarningAmber as OverdueReportIcon,
     Wifi as PackagesIcon,
     Insights as ReportsIcon,
 } from '@mui/icons-material';
@@ -94,7 +91,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const permissions = props.auth?.permissions || [];
     const isSuperAdmin = !!props.auth?.is_super_admin;
     const roleName = props.auth?.role || (isSuperAdmin ? 'super_admin' : 'staff');
-    const unreadNotifications = Number(props.notifications?.unread_count || 0);
     const flash = props.flash || {};
     const [profileAnchor, setProfileAnchor] = useState(null);
     const [desktopOpen, setDesktopOpen] = useState(true);
@@ -163,7 +159,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 ...(can('dashboard.view')
                     ? [
                           { label: 'Report', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> },
-                          { label: 'Overdue Report', href: `${adminAppUrl}/reports/overdue`, icon: <OverdueReportIcon fontSize="small" /> },
                           { label: 'Performance', href: `${adminAppUrl}/performance`, icon: <PerformanceIcon fontSize="small" /> },
                       ]
                     : []),
@@ -466,14 +461,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         </Stack>
 
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', ml: { xs: 'auto', md: 0 } }}>
-                            <Tooltip title="Notifications">
-                                <IconButton>
-                                    <Badge color="error" badgeContent={unreadNotifications} max={99}>
-                                        <NotificationsIcon fontSize="small" />
-                                    </Badge>
-                                </IconButton>
-                            </Tooltip>
-
                             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 <Stack sx={{ display: { xs: 'none', sm: 'flex' }, minWidth: 0 }}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 800 }} noWrap>

@@ -217,83 +217,39 @@ export default function ReportIndex({ filters, branches, canFilterBranch, summar
                     })}
                 </Box>
 
-                <Stack direction={{ xs: 'column', xl: 'row' }} spacing={2}>
-                    <AppSurface sx={{ flex: 1, p: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
-                            Collection status
-                        </Typography>
-                        <Stack spacing={1.1}>
-                            {[
-                                ['Paid invoices', summary?.paid_invoice_count ?? 0, 'Invoices fully collected within the selected invoice month.'],
-                                ['Partial invoices', summary?.partial_invoice_count ?? 0, 'Invoices with some cash collected but balance still remaining.'],
-                                ['Unpaid or overdue', summary?.unpaid_invoice_count ?? 0, 'Invoices that still need collection action from the team.'],
-                                ['Collection rate', `${summary?.collection_rate ?? 0}%`, 'Share of monthly billed value already collected as cash.'],
-                            ].map(([label, value, helper]) => (
-                                <Box
-                                    key={label}
-                                    sx={{
-                                        p: 1.25,
-                                        borderRadius: '10px',
-                                        bgcolor: 'rgba(148,163,184,0.06)',
-                                        border: '1px solid rgba(148,163,184,0.08)',
-                                    }}
-                                >
-                                    <Typography variant="caption" color="text.secondary">
-                                        {label}
-                                    </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.35, mb: 0.25 }}>
-                                        {value}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {helper}
-                                    </Typography>
-                                </Box>
-                            ))}
-                        </Stack>
-                    </AppSurface>
-
-                    <AppSurface sx={{ flex: 1, p: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
-                            Overdue list
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                            Open the dedicated overdue page to review all overdue invoices with proper pagination and branch filtering.
-                        </Typography>
-                        <Stack spacing={1.1}>
+                <AppSurface sx={{ p: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
+                        Collection status
+                    </Typography>
+                    <Stack spacing={1.1}>
+                        {[
+                            ['Paid invoices', summary?.paid_invoice_count ?? 0, 'Invoices fully collected within the selected invoice month.'],
+                            ['Partial invoices', summary?.partial_invoice_count ?? 0, 'Invoices with some cash collected but balance still remaining.'],
+                            ['Unpaid or overdue', summary?.unpaid_invoice_count ?? 0, 'Invoices that still need collection action from the team.'],
+                            ['Collection rate', `${summary?.collection_rate ?? 0}%`, 'Share of monthly billed value already collected as cash.'],
+                        ].map(([label, value, helper]) => (
                             <Box
+                                key={label}
                                 sx={{
                                     p: 1.25,
                                     borderRadius: '10px',
-                                    bgcolor: 'rgba(245,158,11,0.08)',
-                                    border: '1px solid rgba(245,158,11,0.16)',
+                                    bgcolor: 'rgba(148,163,184,0.06)',
+                                    border: '1px solid rgba(148,163,184,0.08)',
                                 }}
                             >
                                 <Typography variant="caption" color="text.secondary">
-                                    Current overdue exposure
+                                    {label}
                                 </Typography>
                                 <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.35, mb: 0.25 }}>
-                                    {summary?.overdue_count ?? 0} invoice(s)
+                                    {value}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Outstanding overdue balance {formatCurrency(summary?.overdue_amount)}
+                                    {helper}
                                 </Typography>
                             </Box>
-                            <Box>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() =>
-                                        router.get(`${admin_app_url}/reports/overdue`, {
-                                            month: month || undefined,
-                                            branch_id: branchId || undefined,
-                                        })
-                                    }
-                                >
-                                    Open Overdue List
-                                </Button>
-                            </Box>
-                        </Stack>
-                    </AppSurface>
-                </Stack>
+                        ))}
+                    </Stack>
+                </AppSurface>
 
                 <Stack spacing={2}>
                     <Box

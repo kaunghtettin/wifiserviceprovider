@@ -82,82 +82,6 @@ class ReportController extends Controller
         ]);
     }
 
-    public function overdue(Request $request): Response
-    {
-        [$month, $monthStart, $monthEnd, $asOfDate, $canViewAllBranches, $selectedBranchId, $effectiveBranchIds] = $this->resolveFilters($request);
-        $perPage = max(10, min((int) $request->query('per_page', 15), 100));
-        $search = trim((string) $request->query('q', ''));
-
-        $overdueQuery = Invoice::query()
-            ->with([
-                'branch:id,name',
-                'customer:id,name,customer_code,phone',
-            ])
-            ->where('balance_amount', '>', 0)
-            ->whereDate('due_date', '<', $asOfDate->toDateString())
-            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('invoice_number', 'like', '%'.$search.'%')
-                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                            $customerQuery
-                                ->where('name', 'like', '%'.$search.'%')
-                                ->orWhere('customer_code', 'like', '%'.$search.'%')
-                                ->orWhere('phone', 'like', '%'.$search.'%');
-                        });
-                });
-            })
-            ->orderBy('due_date')
-            ->orderByDesc('balance_amount');
-
-        $totalOverdueBalance = (float) (clone $overdueQuery)->sum('balance_amount');
-        $overdueCustomerCount = (clone $overdueQuery)->reorder()->distinct()->count('customer_id');
-        $overdueInvoices = $overdueQuery->paginate($perPage, [
-            'id',
-            'invoice_number',
-            'branch_id',
-            'customer_id',
-            'invoice_month',
-            'due_date',
-            'balance_amount',
-            'status',
-        ])->withQueryString();
-        $overdueInvoices->getCollection()->transform(function (Invoice $invoice) use ($asOfDate) {
-            $dueDate = $invoice->due_date instanceof Carbon
-                ? $invoice->due_date->copy()->startOfDay()
-                : Carbon::parse($invoice->due_date)->startOfDay();
-            $invoice->setAttribute('days_overdue', $dueDate->diffInDays($asOfDate));
-
-            return $invoice;
-        });
-
-        [$overdueAging] = $this->buildOverdueCustomerAnalysis($asOfDate, $effectiveBranchIds, $search);
-        $branches = $canViewAllBranches
-            ? Branch::query()->orderBy('name')->get(['id', 'name'])
-            : [];
-
-        return Inertia::render('Reports/Overdue', [
-            'filters' => [
-                'month' => $month,
-                'as_of_date' => $asOfDate->toDateString(),
-                'q' => $search,
-                'branch_id' => $canViewAllBranches ? ($selectedBranchId ?: '') : '',
-                'per_page' => $perPage,
-            ],
-            'branches' => $branches,
-            'canFilterBranch' => $canViewAllBranches,
-            'summary' => [
-                'count' => $overdueInvoices->total(),
-                'customer_count' => $overdueCustomerCount,
-                'balance_amount' => round($totalOverdueBalance, 2),
-            ],
-            'overdueAging' => $overdueAging,
-            'overdueInvoices' => $overdueInvoices,
-            'canManageCustomers' => (bool) $request->user()?->hasPermission('customers.manage'),
-        ]);
-    }
-
     private function resolveFilters(Request $request): array
     {
         $user = $request->user();
@@ -185,7 +109,7 @@ class ReportController extends Controller
     /**
      * @param  array<int, int>|null  $effectiveBranchIds
      */
-    private function buildOverdueCustomerAnalysis(Carbon $asOfDate, ?array $effectiveBranchIds, string $search = ''): array
+    private function buildOverdueCustomerAnalysis(Carbon $asOfDate, ?array $effectiveBranchIds): array
     {
         $overdueInvoiceRows = Invoice::query()
             ->select([
@@ -198,18 +122,6 @@ class ReportController extends Controller
             ->where('balance_amount', '>', 0)
             ->whereDate('due_date', '<', $asOfDate->toDateString())
             ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery
-                        ->where('invoice_number', 'like', '%'.$search.'%')
-                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                            $customerQuery
-                                ->where('name', 'like', '%'.$search.'%')
-                                ->orWhere('customer_code', 'like', '%'.$search.'%')
-                                ->orWhere('phone', 'like', '%'.$search.'%');
-                        });
-                });
-            })
             ->orderByDesc('invoice_month')
             ->orderByDesc('due_date')
             ->get();

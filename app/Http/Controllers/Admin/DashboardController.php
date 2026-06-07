@@ -102,7 +102,7 @@ class DashboardController extends Controller
             $overdueBalance = (float) (clone $overdueInvoiceQuery)->sum('balance_amount');
             $dueSoonCount = (clone $dueSoonInvoiceQuery)->count();
             $dueSoonBalance = (float) (clone $dueSoonInvoiceQuery)->sum('balance_amount');
-            $billingHref = $canReports ? '/reports/overdue' : ($canInvoices ? '/invoices?status=overdue' : '/customers');
+            $billingHref = $canInvoices ? '/invoices?status=overdue' : ($canReports ? '/reports' : '/customers');
 
             $cards[] = [
                 'key' => 'outstanding',
@@ -235,7 +235,6 @@ class DashboardController extends Controller
             $canInvoices ? ['label' => 'Invoice ledger', 'description' => 'Review and generate monthly invoices.', 'href' => '/invoices', 'icon' => 'invoices', 'tone' => 'primary'] : null,
             $canPayments ? ['label' => 'Record payment', 'description' => 'Post a collection and print its receipt.', 'href' => '/payments', 'icon' => 'payments', 'tone' => 'success'] : null,
             $canExpenses ? ['label' => 'Record expense', 'description' => 'Add and review branch expenses.', 'href' => '/expenses', 'icon' => 'expenses', 'tone' => 'warning'] : null,
-            $canReports ? ['label' => 'Overdue follow-up', 'description' => 'Prioritize customers with past-due balances.', 'href' => '/reports/overdue', 'icon' => 'overdue', 'tone' => 'danger'] : null,
             $canReports ? ['label' => 'Collection report', 'description' => 'Review billing and collection performance.', 'href' => '/reports', 'icon' => 'reports', 'tone' => 'secondary'] : null,
             $canPackages ? ['label' => 'Manage packages', 'description' => 'Maintain available service plans.', 'href' => '/packages', 'icon' => 'packages', 'tone' => 'secondary'] : null,
             $canUsers ? ['label' => 'Manage users', 'description' => 'Control staff accounts and assignments.', 'href' => '/users', 'icon' => 'users', 'tone' => 'secondary'] : null,
