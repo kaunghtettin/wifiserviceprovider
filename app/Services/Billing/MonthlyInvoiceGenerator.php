@@ -128,25 +128,31 @@ class MonthlyInvoiceGenerator
         $billingDay = max(1, min(31, (int) $customer->billing_day_of_month));
         $dueDate = $normalizedMonth->copy()->day(min($billingDay, $normalizedMonth->daysInMonth));
         $packagePrice = (float) ($customer->package?->price ?? 0);
+        $invoiceMonth = $normalizedMonth->toDateString();
 
-        return Invoice::firstOrCreate(
-            [
-                'customer_id' => $customer->id,
-                'invoice_month' => $normalizedMonth->toDateString(),
-            ],
-            [
-                'branch_id' => $customer->branch_id,
-                'wifi_package_id' => $customer->wifi_package_id,
-                'due_date' => $dueDate->toDateString(),
-                'billing_day_of_month' => $billingDay,
-                'package_name' => $customer->package?->name,
-                'package_price' => $packagePrice,
-                'total_amount' => $packagePrice,
-                'paid_amount' => 0,
-                'balance_amount' => $packagePrice,
-                'status' => $dueDate->isPast() && $packagePrice > 0 ? 'overdue' : 'unpaid',
-                'generated_by_user_id' => $actor?->id,
-            ],
-        );
+        $existingInvoice = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->whereDate('invoice_month', $invoiceMonth)
+            ->first();
+
+        if ($existingInvoice) {
+            return $existingInvoice;
+        }
+
+        return Invoice::create([
+            'customer_id' => $customer->id,
+            'invoice_month' => $invoiceMonth,
+            'branch_id' => $customer->branch_id,
+            'wifi_package_id' => $customer->wifi_package_id,
+            'due_date' => $dueDate->toDateString(),
+            'billing_day_of_month' => $billingDay,
+            'package_name' => $customer->package?->name,
+            'package_price' => $packagePrice,
+            'total_amount' => $packagePrice,
+            'paid_amount' => 0,
+            'balance_amount' => $packagePrice,
+            'status' => $dueDate->isPast() && $packagePrice > 0 ? 'overdue' : 'unpaid',
+            'generated_by_user_id' => $actor?->id,
+        ]);
     }
 }

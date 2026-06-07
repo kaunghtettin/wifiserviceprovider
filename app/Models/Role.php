@@ -13,6 +13,7 @@ class Role extends Model
 
     protected $fillable = [
         'name',
+        'scope',
         'description',
     ];
 
@@ -25,5 +26,11 @@ class Role extends Model
     {
         return $this->belongsToMany(Permission::class, 'role_permissions');
     }
-}
 
+    public function branchUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'branch_user')
+            ->withPivot('branch_id')
+            ->withTimestamps();
+    }
+}

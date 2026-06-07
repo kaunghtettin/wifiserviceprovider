@@ -18,18 +18,22 @@ return new class extends Migration
             $table->unique(['user_id', 'branch_id']);
         });
 
-        // Remove the old single branch_id column from users (dev schema reset allowed)
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('branch_id');
-        });
+        // SQLite cannot drop foreign keys in-place. Keeping the legacy column in
+        // test databases is harmless because branch access uses this pivot.
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('branch_id');
+            });
+        }
     }
 
     public function down()
     {
-        // Restore single branch_id column
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('branch_id')->nullable()->after('id')->constrained('branches')->nullOnDelete();
-        });
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            Schema::table('users', function (Blueprint $table) {
+                $table->foreignId('branch_id')->nullable()->after('id')->constrained('branches')->nullOnDelete();
+            });
+        }
 
         Schema::dropIfExists('branch_user');
     }

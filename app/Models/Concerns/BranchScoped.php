@@ -10,33 +10,25 @@ trait BranchScoped
     {
         static::creating(function ($model) {
             $user = auth()->user();
-            if (!$user) {
+            if (!$user || $user->workspace() !== 'branch') {
                 return;
             }
 
-            if ($user->canViewAllBranches()) {
-                return;
-            }
-
-            $branchId = $user->soleBranchId();
-            if ($branchId && empty($model->branch_id)) {
+            $branchId = $user->activeBranchId();
+            if ($branchId) {
                 $model->branch_id = $branchId;
             }
         });
 
         static::addGlobalScope('branch', function (Builder $builder) {
             $user = auth()->user();
-            if (!$user) {
+            if (!$user || $user->workspace() !== 'branch') {
                 return;
             }
 
-            if ($user->canViewAllBranches()) {
-                return;
-            }
-
-            $builder->whereIn(
+            $builder->where(
                 $builder->getModel()->getTable().'.branch_id',
-                $user->accessibleBranchIds()
+                $user->activeBranchId() ?: 0
             );
         });
     }

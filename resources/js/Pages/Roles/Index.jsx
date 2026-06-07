@@ -28,7 +28,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, MoreVert as MoreVertIcon } from '@mui/icons-material';
 
-const emptyForm = { name: '', description: '', permission_keys: [] };
+const emptyForm = { name: '', scope: 'branch', description: '', permission_keys: [] };
 
 const groupPermissions = (permissions) => {
     const groups = new Map();
@@ -73,6 +73,7 @@ export default function RolesIndex({ roles, permissions }) {
         setEditing(role);
         setData({
             name: role?.name || '',
+            scope: role?.scope || 'branch',
             description: role?.description || '',
             permission_keys: Array.isArray(role?.permission_keys) ? role.permission_keys : [],
         });
@@ -147,6 +148,7 @@ export default function RolesIndex({ roles, permissions }) {
                             <TableRow>
                                 <TableCell>Role</TableCell>
                                 <TableCell>Description</TableCell>
+                                <TableCell>Scope</TableCell>
                                 <TableCell>Users</TableCell>
                                 <TableCell>Permissions</TableCell>
                                 <TableCell align="right" sx={{ width: 72 }}>
@@ -163,6 +165,7 @@ export default function RolesIndex({ roles, permissions }) {
                                             {role.description || '-'}
                                         </Typography>
                                     </TableCell>
+                                    <TableCell><Typography sx={{ textTransform: 'capitalize' }}>{role.scope}</Typography></TableCell>
                                     <TableCell>{role.users_count ?? 0}</TableCell>
                                     <TableCell>{Array.isArray(role.permission_keys) ? role.permission_keys.length : 0}</TableCell>
                                     <TableCell align="right">
@@ -231,6 +234,17 @@ export default function RolesIndex({ roles, permissions }) {
                                     helperText={errors.description}
                                     sx={{ flex: 2 }}
                                 />
+                                <TextField
+                                    select
+                                    label="Scope"
+                                    value={data.scope}
+                                    onChange={(e) => setData('scope', e.target.value)}
+                                    disabled={!!editing}
+                                    sx={{ minWidth: 150 }}
+                                >
+                                    <MenuItem value="branch">Branch</MenuItem>
+                                    <MenuItem value="global">Global</MenuItem>
+                                </TextField>
                             </Stack>
 
                             <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>

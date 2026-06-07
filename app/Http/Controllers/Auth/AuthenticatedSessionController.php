@@ -33,13 +33,14 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        $request->session()->forget(['workspace', 'active_branch_id']);
 
         $user = $request->user();
         if ($user) {
             $user->forceFill(['last_login_at' => now()])->save();
         }
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->route('admin.workspaces.index');
     }
 
     /**

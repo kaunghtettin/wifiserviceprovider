@@ -98,7 +98,7 @@ export default function PerformanceIndex({ filters, branches, canFilterBranch, s
 
     const applyFilters = () => {
         router.get(
-            `${admin_app_url}/performance`,
+            `${admin_app_url}/global-summary`,
             cleanParams({
                 month,
                 branch_id: branchId,
@@ -116,7 +116,7 @@ export default function PerformanceIndex({ filters, branches, canFilterBranch, s
         setMonth(nextMonth);
         setBranchId('');
         router.get(
-            `${admin_app_url}/performance`,
+            `${admin_app_url}/global-summary`,
             { month: nextMonth },
             {
                 preserveState: true,
@@ -173,14 +173,14 @@ export default function PerformanceIndex({ filters, branches, canFilterBranch, s
     );
 
     return (
-        <AdminLayout title="Performance">
-            <Head title="Performance" />
+        <AdminLayout title="Global Summary">
+            <Head title="Global Summary" />
 
             <Stack spacing={2.25}>
                 <PageHeader
-                    eyebrow="Branch Intelligence"
-                    title="Branch performance"
-                    description="Compare branch income, expenses, active customer base, collection quality, and overdue pressure for the selected month."
+                    eyebrow="Company Intelligence"
+                    title="Global summary"
+                    description="Review consolidated results and compare performance across every branch."
                     actions={[
                         <TextField
                             key="month"

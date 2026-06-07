@@ -6,7 +6,12 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import {
-    Autocomplete,
+    Add as AddIcon,
+    Delete as DeleteIcon,
+    Edit as EditIcon,
+    Search as SearchIcon,
+} from '@mui/icons-material';
+import {
     Box,
     Button,
     Chip,
@@ -15,7 +20,6 @@ import {
     DialogContent,
     DialogTitle,
     IconButton,
-    Menu,
     MenuItem,
     Stack,
     Table,
@@ -26,11 +30,10 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, MoreVert as MoreVertIcon, Search as SearchIcon } from '@mui/icons-material';
 
 const emptyForm = {
-    branch_ids: [],
-    role_id: '',
+    global_role_id: '',
+    branch_assignments: [],
     name: '',
     email: '',
     phone: '',
@@ -38,19 +41,13 @@ const emptyForm = {
     password: '',
 };
 
-export default function UserIndex({ users, branches, roles, canAssignBranch, canAssignRole, filters }) {
-    const { admin_app_url, auth } = usePage().props;
-    const authUserId = auth?.user?.id;
+export default function UserIndex({ users, branches, branchRoles, globalRoles, filters }) {
+    const { admin_app_url: appUrl, auth } = usePage().props;
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
-    const [actionAnchor, setActionAnchor] = useState(null);
-    const [actionUser, setActionUser] = useState(null);
-    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm(emptyForm);
     const [query, setQuery] = useState(filters?.q || '');
-
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm(emptyForm);
     const rows = useMemo(() => users || [], [users]);
-    const branchOptions = useMemo(() => branches || [], [branches]);
-    const roleOptions = useMemo(() => roles || [], [roles]);
 
     const closeDialog = () => {
         setOpen(false);
@@ -61,162 +58,136 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
 
     const openCreate = () => {
         setEditing(null);
-        reset();
+        setData(emptyForm);
         clearErrors();
         setOpen(true);
     };
 
-    const openEdit = (u) => {
-        setEditing(u);
+    const openEdit = (user) => {
+        setEditing(user);
         setData({
-            branch_ids: u?.branches?.map((b) => b.id) ?? [],
-            role_id: u?.role_id ?? '',
-            name: u?.name ?? '',
-            email: u?.email ?? '',
-            phone: u?.phone ?? '',
-            status: u?.status ?? 'active',
+            global_role_id: user.global_role_id || '',
+            branch_assignments: (user.branch_assignments || []).map((assignment) => ({
+                branch_id: assignment.branch_id,
+                role_id: assignment.role_id || '',
+            })),
+            name: user.name || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            status: user.status || 'active',
             password: '',
         });
         clearErrors();
         setOpen(true);
     };
 
-    const submit = (e) => {
-        e.preventDefault();
-
-        const payload = {
-            ...data,
-            branch_ids: canAssignBranch ? data.branch_ids : undefined,
-            role_id: canAssignRole ? data.role_id : undefined,
-        };
-
+    const submit = (event) => {
+        event.preventDefault();
+        const options = { preserveScroll: true, onSuccess: closeDialog };
         if (editing?.id) {
-            put(`${admin_app_url}/users/${editing.id}`, {
-                data: payload,
-                preserveScroll: true,
-                onSuccess: closeDialog,
-            });
-            return;
+            put(`${appUrl}/users/${editing.id}`, options);
+        } else {
+            post(`${appUrl}/users`, options);
         }
-
-        post(`${admin_app_url}/users`, {
-            data: payload,
-            preserveScroll: true,
-            onSuccess: closeDialog,
-        });
     };
 
-    const remove = (u) => {
-        if (!u?.id) return;
-        if (u.id === authUserId) return;
-        if (!window.confirm(`Delete user "${u.name}"?`)) return;
-        router.delete(`${admin_app_url}/users/${u.id}`, { preserveScroll: true });
+    const addAssignment = () => {
+        setData('branch_assignments', [
+            ...data.branch_assignments,
+            { branch_id: '', role_id: branchRoles?.[0]?.id || '' },
+        ]);
     };
 
-    const openActions = (event, u) => {
-        setActionAnchor(event.currentTarget);
-        setActionUser(u);
+    const updateAssignment = (index, key, value) => {
+        setData(
+            'branch_assignments',
+            data.branch_assignments.map((assignment, assignmentIndex) =>
+                assignmentIndex === index ? { ...assignment, [key]: value } : assignment),
+        );
     };
-    const closeActions = () => {
-        setActionAnchor(null);
-        setActionUser(null);
+
+    const removeAssignment = (index) => {
+        setData('branch_assignments', data.branch_assignments.filter((_, assignmentIndex) => assignmentIndex !== index));
+    };
+
+    const removeUser = (user) => {
+        if (user.id === auth?.user?.id || !window.confirm(`Delete user "${user.name}"?`)) return;
+        router.delete(`${appUrl}/users/${user.id}`, { preserveScroll: true });
     };
 
     const applySearch = () => {
-        router.get(`${admin_app_url}/users`, { q: query || '' }, { preserveState: true, preserveScroll: true, replace: true });
+        router.get(`${appUrl}/users`, { q: query }, { preserveState: true, replace: true });
     };
-
-    const roleLabel = (u) => u?.role?.name || '-';
-    const branchLabel = (u) => (u?.branches?.length ? u.branches.map((b) => b.name).join(', ') : '-');
 
     return (
         <AdminLayout title="Users">
             <Head title="Users" />
-
             <Stack spacing={2.25}>
                 <PageHeader
-                    eyebrow="Workspace"
-                    title="Team access"
-                    description="Manage admins and operators with branch assignment, roles, and account status."
-                    actions={
-                        <>
-                            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                                New User
-                            </Button>
-                        </>
-                    }
+                    eyebrow="Global Administration"
+                    title="Users and branch access"
+                    description="Assign a separate operational role for every branch a user can enter."
+                    actions={<Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>New User</Button>}
                 />
 
                 <TableCard
                     title="User directory"
-                    description={`${rows.length} user accounts with role-based access control.`}
+                    description={`${rows.length} accounts`}
                     toolbar={
-                        <>
-                        <TextField
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search name, email, phone"
-                            size="small"
-                            sx={{ minWidth: { xs: '100%', sm: 280 } }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') applySearch();
-                            }}
-                            InputProps={{
-                                startAdornment: <SearchIcon fontSize="small" style={{ marginRight: 8, opacity: 0.6 }} />,
-                            }}
-                        />
-                        <Button variant="outlined" onClick={applySearch}>
-                            Search
-                        </Button>
-                        </>
+                        <Stack direction="row" spacing={1}>
+                            <TextField
+                                size="small"
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                onKeyDown={(event) => event.key === 'Enter' && applySearch()}
+                                placeholder="Search users"
+                                InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} /> }}
+                            />
+                            <Button variant="outlined" onClick={applySearch}>Search</Button>
+                        </Stack>
                     }
                 >
-                    {rows.length === 0 ? (
-                        <EmptyState
-                            compact
-                            icon={<AddIcon />}
-                            title="No users found"
-                            description="Create staff and admin accounts to start assigning operational responsibilities."
-                            action={{ label: 'Create user', onClick: openCreate }}
-                        />
-                    ) : (
-                        <Box sx={{ overflowX: 'auto', width: '100%' }}>
-                            <Table size="small" stickyHeader sx={{ minWidth: { xs: 700, md: 980 } }}>
+                    {rows.length ? (
+                        <Box sx={{ overflowX: 'auto' }}>
+                            <Table size="small" sx={{ minWidth: 900 }}>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>Name</TableCell>
-                                        <TableCell>Email</TableCell>
-                                        <TableCell>Phone</TableCell>
-                                        <TableCell>Role</TableCell>
-                                        <TableCell>Branch</TableCell>
+                                        <TableCell>User</TableCell>
+                                        <TableCell>Global role</TableCell>
+                                        <TableCell>Branch access</TableCell>
                                         <TableCell>Status</TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Last Login</TableCell>
-                                        <TableCell align="right" sx={{ width: 72 }}>
-                                            Actions
-                                        </TableCell>
+                                        <TableCell>Last login</TableCell>
+                                        <TableCell align="right">Actions</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {rows.map((u) => (
-                                        <TableRow key={u.id} hover>
+                                    {rows.map((user) => (
+                                        <TableRow key={user.id} hover>
                                             <TableCell>
-                                                <Typography sx={{ fontWeight: 760 }}>{u.name}</Typography>
+                                                <Typography sx={{ fontWeight: 750 }}>{user.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{user.email}</Typography>
                                             </TableCell>
-                                            <TableCell>{u.email}</TableCell>
-                                            <TableCell>{u.phone || '-'}</TableCell>
+                                            <TableCell>{user.global_role?.name || '-'}</TableCell>
                                             <TableCell>
-                                                <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                                                    {roleLabel(u)}
-                                                </Typography>
+                                                <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                                                    {(user.branch_assignments || []).map((assignment) => (
+                                                        <Chip
+                                                            key={assignment.branch_id}
+                                                            size="small"
+                                                            label={`${assignment.branch_name}: ${assignment.role_name || 'No role'}`}
+                                                        />
+                                                    ))}
+                                                    {!user.branch_assignments?.length ? <Typography color="text.secondary">None</Typography> : null}
+                                                </Stack>
                                             </TableCell>
-                                            <TableCell>{branchLabel(u)}</TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={u.status} />
-                                            </TableCell>
-                                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.last_login_at ? String(u.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
+                                            <TableCell><StatusBadge status={user.status} /></TableCell>
+                                            <TableCell>{user.last_login_at ? String(user.last_login_at).replace('T', ' ').slice(0, 19) : '-'}</TableCell>
                                             <TableCell align="right">
-                                                <IconButton size="small" onClick={(e) => openActions(e, u)} title="Actions" disabled={u.id === authUserId}>
-                                                    <MoreVertIcon fontSize="small" />
+                                                <IconButton size="small" onClick={() => openEdit(user)} disabled={user.id === auth?.user?.id}>
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton size="small" color="error" onClick={() => removeUser(user)} disabled={user.id === auth?.user?.id}>
+                                                    <DeleteIcon fontSize="small" />
                                                 </IconButton>
                                             </TableCell>
                                         </TableRow>
@@ -224,156 +195,124 @@ export default function UserIndex({ users, branches, roles, canAssignBranch, can
                                 </TableBody>
                             </Table>
                         </Box>
+                    ) : (
+                        <EmptyState compact icon={<AddIcon />} title="No users found" description="Create the first user assignment." />
                     )}
                 </TableCard>
             </Stack>
 
-            <Menu
-                anchorEl={actionAnchor}
-                open={Boolean(actionAnchor)}
-                onClose={closeActions}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                PaperProps={{ variant: 'outlined', sx: { borderRadius: 2 } }}
-            >
-                <MenuItem
-                    onClick={() => {
-                        const u = actionUser;
-                        closeActions();
-                        if (u) openEdit(u);
-                    }}
-                >
-                    <EditIcon fontSize="small" style={{ marginRight: 8 }} /> Edit
-                </MenuItem>
-                <MenuItem
-                    onClick={() => {
-                        const u = actionUser;
-                        closeActions();
-                        if (u) remove(u);
-                    }}
-                >
-                    <DeleteIcon fontSize="small" style={{ marginRight: 8 }} /> Delete
-                </MenuItem>
-            </Menu>
-
-            <Dialog open={open} onClose={closeDialog} fullWidth maxWidth="sm" scroll="paper">
-                <DialogTitle>{editing ? 'Edit User' : 'New User'}</DialogTitle>
+            <Dialog open={open} onClose={closeDialog} fullWidth maxWidth="md">
+                <DialogTitle>{editing ? `Edit ${editing.name}` : 'New User'}</DialogTitle>
                 <Box component="form" onSubmit={submit}>
                     <DialogContent>
-                        <Stack spacing={2} sx={{ mt: 0.5 }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                                {canAssignRole ? (
-                                    <TextField
-                                        select
-                                        label="Role"
-                                        value={data.role_id}
-                                        onChange={(e) => setData('role_id', e.target.value)}
-                                        error={!!errors.role_id}
-                                        helperText={errors.role_id}
-                                        required
-                                        sx={{ flex: 1 }}
-                                    >
-                                        {roleOptions.map((r) => (
-                                            <MenuItem key={r.id} value={r.id}>
-                                                {r.name}
-                                            </MenuItem>
-                                        ))}
-                                    </TextField>
-                                ) : null}
-
-                                {canAssignBranch ? (
-                                    <Autocomplete
-                                        multiple
-                                        options={branchOptions}
-                                        getOptionLabel={(option) => option.name || ''}
-                                        value={branchOptions.filter((b) => data.branch_ids.includes(b.id))}
-                                        onChange={(_, newValue) => setData('branch_ids', newValue.map((v) => v.id))}
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Branches"
-                                                error={!!errors.branch_ids}
-                                                helperText={errors.branch_ids}
-                                            />
-                                        )}
-                                        renderTags={(tagValue, getTagProps) =>
-                                            tagValue.map((option, index) => (
-                                                <Chip
-                                                    key={option.id}
-                                                    label={option.name}
-                                                    size="small"
-                                                    {...getTagProps({ index })}
-                                                />
-                                            ))
-                                        }
-                                        sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
-                                    />
-                                ) : null}
-                            </Stack>
-
+                        <Stack spacing={2.5} sx={{ pt: 1 }}>
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                                 <TextField
+                                    fullWidth
+                                    required
                                     label="Name"
                                     value={data.name}
-                                    onChange={(e) => setData('name', e.target.value)}
+                                    onChange={(event) => setData('name', event.target.value)}
                                     error={!!errors.name}
                                     helperText={errors.name}
-                                    required
-                                    sx={{ flex: 1 }}
                                 />
                                 <TextField
+                                    fullWidth
+                                    required
+                                    type="email"
                                     label="Email"
                                     value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
+                                    onChange={(event) => setData('email', event.target.value)}
                                     error={!!errors.email}
                                     helperText={errors.email}
-                                    required
-                                    sx={{ flex: 1 }}
                                 />
                             </Stack>
-
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                <TextField fullWidth label="Phone" value={data.phone} onChange={(event) => setData('phone', event.target.value)} />
                                 <TextField
-                                    label="Phone"
-                                    value={data.phone}
-                                    onChange={(e) => setData('phone', e.target.value)}
-                                    error={!!errors.phone}
-                                    helperText={errors.phone}
-                                    sx={{ flex: 1 }}
-                                />
-                                <TextField
+                                    fullWidth
                                     select
                                     label="Status"
                                     value={data.status}
-                                    onChange={(e) => setData('status', e.target.value)}
-                                    error={!!errors.status}
-                                    helperText={errors.status}
-                                    required
-                                    sx={{ flex: 1 }}
+                                    onChange={(event) => setData('status', event.target.value)}
                                 >
                                     <MenuItem value="active">Active</MenuItem>
                                     <MenuItem value="disabled">Disabled</MenuItem>
                                 </TextField>
                             </Stack>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Global role (optional)"
+                                    value={data.global_role_id}
+                                    onChange={(event) => setData('global_role_id', event.target.value)}
+                                    error={!!errors.global_role_id}
+                                    helperText={errors.global_role_id || 'Only needed for global administration access.'}
+                                >
+                                    <MenuItem value="">No global access</MenuItem>
+                                    {(globalRoles || []).map((role) => <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>)}
+                                </TextField>
+                                <TextField
+                                    fullWidth
+                                    required={!editing}
+                                    type="password"
+                                    label={editing ? 'New password (optional)' : 'Password'}
+                                    value={data.password}
+                                    onChange={(event) => setData('password', event.target.value)}
+                                    error={!!errors.password}
+                                    helperText={errors.password}
+                                />
+                            </Stack>
 
-                            <TextField
-                                label={editing ? 'New Password (optional)' : 'Password'}
-                                type="password"
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                                error={!!errors.password}
-                                helperText={errors.password}
-                                required={!editing}
-                            />
+                            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Box>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Branch assignments</Typography>
+                                    <Typography variant="body2" color="text.secondary">Choose one role for each branch.</Typography>
+                                </Box>
+                                <Button startIcon={<AddIcon />} onClick={addAssignment}>Add branch</Button>
+                            </Stack>
+
+                            {data.branch_assignments.map((assignment, index) => (
+                                <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                                    <TextField
+                                        fullWidth
+                                        select
+                                        label="Branch"
+                                        value={assignment.branch_id}
+                                        onChange={(event) => updateAssignment(index, 'branch_id', event.target.value)}
+                                        error={!!errors[`branch_assignments.${index}.branch_id`]}
+                                        helperText={errors[`branch_assignments.${index}.branch_id`]}
+                                    >
+                                        {(branches || []).map((branch) => (
+                                            <MenuItem
+                                                key={branch.id}
+                                                value={branch.id}
+                                                disabled={data.branch_assignments.some((item, itemIndex) => itemIndex !== index && item.branch_id === branch.id)}
+                                            >
+                                                {branch.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        fullWidth
+                                        select
+                                        label="Role in branch"
+                                        value={assignment.role_id}
+                                        onChange={(event) => updateAssignment(index, 'role_id', event.target.value)}
+                                        error={!!errors[`branch_assignments.${index}.role_id`]}
+                                        helperText={errors[`branch_assignments.${index}.role_id`]}
+                                    >
+                                        {(branchRoles || []).map((role) => <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>)}
+                                    </TextField>
+                                    <IconButton color="error" onClick={() => removeAssignment(index)}><DeleteIcon /></IconButton>
+                                </Stack>
+                            ))}
                         </Stack>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={closeDialog} disabled={processing}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" variant="contained" disabled={processing}>
-                            {editing ? 'Save' : 'Create'}
-                        </Button>
+                        <Button onClick={closeDialog}>Cancel</Button>
+                        <Button type="submit" variant="contained" disabled={processing}>{editing ? 'Save' : 'Create'}</Button>
                     </DialogActions>
                 </Box>
             </Dialog>

@@ -46,6 +46,8 @@ import {
     Sell as ExpenseCategoryIcon,
     Wifi as PackagesIcon,
     Insights as ReportsIcon,
+    SwapHoriz as SwitchWorkspaceIcon,
+    WarningAmberRounded as OverdueTrackingIcon,
 } from '@mui/icons-material';
 import { getAdminTheme } from '@/theme/adminTheme';
 
@@ -88,6 +90,8 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
     const adminAppUrl = props.admin_app_url;
     const appBase = props.app_base || '';
     const authUser = props.auth?.user;
+    const workspace = props.auth?.workspace;
+    const activeBranch = props.auth?.branch;
     const permissions = props.auth?.permissions || [];
     const isSuperAdmin = !!props.auth?.is_super_admin;
     const roleName = props.auth?.role || (isSuperAdmin ? 'super_admin' : 'staff');
@@ -151,7 +155,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
     const can = (permissionKey) => isSuperAdmin || permissions.includes(permissionKey);
 
-    const navGroups = [
+    const branchNavGroups = [
         {
             title: 'Overview',
             items: [
@@ -159,7 +163,6 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 ...(can('dashboard.view')
                     ? [
                           { label: 'Report', href: `${adminAppUrl}/reports`, icon: <ReportsIcon fontSize="small" /> },
-                          { label: 'Performance', href: `${adminAppUrl}/performance`, icon: <PerformanceIcon fontSize="small" /> },
                       ]
                     : []),
             ],
@@ -168,22 +171,25 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
             title: 'Workspace',
             items: [
                 ...(can('customers.manage') ? [{ label: 'Customer', href: `${adminAppUrl}/customers`, icon: <CustomersIcon fontSize="small" /> }] : []),
+                ...(can('customers.manage') ? [{ label: 'Overdue Tracking', href: `${adminAppUrl}/overdue-tracking`, icon: <OverdueTrackingIcon fontSize="small" /> }] : []),
                 ...(can('invoices.manage') ? [{ label: 'Invoice', href: `${adminAppUrl}/invoices`, icon: <InvoicesIcon fontSize="small" /> }] : []),
                 ...(can('payments.manage') ? [{ label: 'Payment', href: `${adminAppUrl}/payments`, icon: <PaymentsIcon fontSize="small" /> }] : []),
                 ...(can('expenses.manage') ? [{ label: 'Expenses', href: `${adminAppUrl}/expenses`, icon: <ExpenseIcon fontSize="small" /> }] : []),
-            ],
-        },
-        {
-            title: 'System',
-            items: [
-                { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
-                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon fontSize="small" /> }] : []),
-                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon fontSize="small" /> }] : []),
-                ...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon fontSize="small" /> }] : []),
                 ...(can('packages.manage') ? [{ label: 'Packages', href: `${adminAppUrl}/packages`, icon: <PackagesIcon fontSize="small" /> }] : []),
                 ...(can('expenses.manage')
                     ? [{ label: 'Expense Categories', href: `${adminAppUrl}/expense-categories`, icon: <ExpenseCategoryIcon fontSize="small" /> }]
                     : []),
+            ],
+        },
+        {
+            title: 'Account',
+            items: [
+                { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
+                {
+                    label: 'Switch Branch',
+                    icon: <SwitchWorkspaceIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/workspaces/switch`),
+                },
                 {
                     label: 'Logout',
                     icon: <LogoutIcon fontSize="small" />,
@@ -191,7 +197,63 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                 },
             ],
         },
-    ].filter((group) => group.items.length > 0);
+    ];
+
+    const globalNavGroups = [
+        {
+            title: 'Global',
+            items: [
+                ...(can('reports.global') ? [{ label: 'Global Summary', href: `${adminAppUrl}/global-summary`, icon: <PerformanceIcon fontSize="small" /> }] : []),
+                ...(can('branches.manage') ? [{ label: 'Branches', href: `${adminAppUrl}/branches`, icon: <BusinessIcon fontSize="small" /> }] : []),
+                ...(can('users.manage') ? [{ label: 'Users', href: `${adminAppUrl}/users`, icon: <UsersIcon fontSize="small" /> }] : []),
+                ...(can('roles.manage') ? [{ label: 'Roles', href: `${adminAppUrl}/roles`, icon: <RolesIcon fontSize="small" /> }] : []),
+            ],
+        },
+        {
+            title: 'Account',
+            items: [
+                { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
+                {
+                    label: 'Switch Workspace',
+                    icon: <SwitchWorkspaceIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/workspaces/switch`),
+                },
+                {
+                    label: 'Logout',
+                    icon: <LogoutIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/logout`),
+                },
+            ],
+        },
+    ];
+
+    const commonNavGroups = [
+        {
+            title: 'Account',
+            items: [
+                { label: 'Profile', href: `${adminAppUrl}/profile`, icon: <PersonIcon fontSize="small" /> },
+                {
+                    label: 'Choose Workspace',
+                    icon: <SwitchWorkspaceIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/workspaces/switch`),
+                },
+                {
+                    label: 'Logout',
+                    icon: <LogoutIcon fontSize="small" />,
+                    onClick: () => router.post(`${adminAppUrl}/logout`),
+                },
+            ],
+        },
+    ];
+
+    const selectedNavGroups = workspace === 'global'
+        ? globalNavGroups
+        : workspace === 'branch'
+            ? branchNavGroups
+            : commonNavGroups;
+
+    const navGroups = selectedNavGroups
+        .filter((group) => group.items.length > 0);
 
     const currentPath = normalizePath(url);
     const flattenedNav = navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.title })));
@@ -221,11 +283,12 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
 
     const currentItem = flattenedNav.find((item) => isActive(item.href));
     const breadcrumbs = useMemo(() => {
-        const crumbs = [{ label: 'Admin', href: `${adminAppUrl}/dashboard` }];
+        const homeHref = workspace === 'global' ? `${adminAppUrl}/global-summary` : `${adminAppUrl}/dashboard`;
+        const crumbs = [{ label: workspace === 'global' ? 'Global' : activeBranch?.name || 'Branch', href: homeHref }];
         if (currentItem?.group) crumbs.push({ label: currentItem.group });
         crumbs.push({ label: title || currentItem?.label || 'Dashboard' });
         return crumbs;
-    }, [adminAppUrl, currentItem, title]);
+    }, [activeBranch?.name, adminAppUrl, currentItem, title, workspace]);
 
     const openProfileMenu = (event) => setProfileAnchor(event.currentTarget);
     const closeProfileMenu = () => setProfileAnchor(null);
@@ -289,7 +352,7 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                     }}
                 >
                     <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: drawerMutedText }}>
-                        Current Role
+                        {workspace === 'global' ? 'Global Workspace' : activeBranch?.name || 'Branch Workspace'}
                     </Typography>
                     <Typography variant="subtitle2" sx={{ color: drawerText, fontWeight: 800 }}>
                         {formatLabel(roleName)}
@@ -523,22 +586,33 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         {dark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
                         Night Mode
                     </MenuItem>
-                    <MenuItem component={Link} href={`${adminAppUrl}/dashboard`} onClick={closeProfileMenu}>
-                        <DashboardIcon fontSize="small" />
-                        Dashboard
-                    </MenuItem>
-                    {can('dashboard.view') ? (
+                    {workspace === 'branch' ? (
+                        <MenuItem component={Link} href={`${adminAppUrl}/dashboard`} onClick={closeProfileMenu}>
+                            <DashboardIcon fontSize="small" />
+                            Dashboard
+                        </MenuItem>
+                    ) : null}
+                    {workspace === 'branch' && can('dashboard.view') ? (
                         <MenuItem component={Link} href={`${adminAppUrl}/reports`} onClick={closeProfileMenu}>
                             <ReportsIcon fontSize="small" />
                             Report
                         </MenuItem>
                     ) : null}
-                    {can('customers.manage') ? (
+                    {workspace === 'branch' && can('customers.manage') ? (
                         <MenuItem component={Link} href={`${adminAppUrl}/customers`} onClick={closeProfileMenu}>
                             <CustomersIcon fontSize="small" />
                             Customers
                         </MenuItem>
                     ) : null}
+                    <MenuItem
+                        onClick={() => {
+                            closeProfileMenu();
+                            router.post(`${adminAppUrl}/workspaces/switch`);
+                        }}
+                    >
+                        <SwitchWorkspaceIcon fontSize="small" />
+                        Switch Workspace
+                    </MenuItem>
                     <Divider sx={{ my: 0.75 }} />
                     <MenuItem
                         onClick={() => {

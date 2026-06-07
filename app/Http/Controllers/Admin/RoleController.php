@@ -17,9 +17,10 @@ class RoleController extends Controller
     {
         $roles = Role::query()
             ->withCount('users')
+            ->withCount('branchUsers')
             ->with(['permissions:id,key'])
             ->orderBy('name')
-            ->get(['id', 'name', 'description', 'created_at']);
+            ->get(['id', 'name', 'scope', 'description', 'created_at']);
 
         $permissions = Permission::query()
             ->orderBy('key')
@@ -30,8 +31,11 @@ class RoleController extends Controller
                 return [
                     'id' => $role->id,
                     'name' => $role->name,
+                    'scope' => $role->scope,
                     'description' => $role->description,
-                    'users_count' => $role->users_count,
+                    'users_count' => $role->scope === 'global'
+                        ? $role->users_count
+                        : $role->branch_users_count,
                     'permission_keys' => $role->permissions->pluck('key')->values(),
                     'created_at' => $role->created_at,
                 ];
@@ -44,6 +48,7 @@ class RoleController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:roles,name'],
+            'scope' => ['required', Rule::in(['global', 'branch'])],
             'description' => ['nullable', 'string', 'max:2000'],
             'permission_keys' => ['array'],
             'permission_keys.*' => ['string', Rule::exists('permissions', 'key')],
@@ -51,6 +56,7 @@ class RoleController extends Controller
 
         $role = Role::create([
             'name' => $data['name'],
+            'scope' => $data['scope'],
             'description' => $data['description'] ?? null,
         ]);
 
@@ -71,6 +77,7 @@ class RoleController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'alpha_dash', Rule::unique('roles', 'name')->ignore($role->id)],
+            'scope' => ['required', Rule::in(['global', 'branch'])],
             'description' => ['nullable', 'string', 'max:2000'],
             'permission_keys' => ['array'],
             'permission_keys.*' => ['string', Rule::exists('permissions', 'key')],
@@ -78,6 +85,10 @@ class RoleController extends Controller
 
         if ($role->name !== $data['name']) {
             abort(422, 'Role name cannot be changed.');
+        }
+
+        if ($role->scope !== $data['scope']) {
+            abort(422, 'Role scope cannot be changed after creation.');
         }
 
         $role->update(['description' => $data['description'] ?? null]);
@@ -98,7 +109,8 @@ class RoleController extends Controller
         }
 
         $role->loadCount('users');
-        if (($role->users_count ?? 0) > 0) {
+        $role->loadCount('branchUsers');
+        if (($role->users_count ?? 0) > 0 || ($role->branch_users_count ?? 0) > 0) {
             abort(422, 'Role has users.');
         }
 

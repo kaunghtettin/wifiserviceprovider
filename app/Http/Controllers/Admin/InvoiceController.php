@@ -113,10 +113,12 @@ class InvoiceController extends Controller
                 'per_page' => $perPage,
             ],
             'summary' => [
-                'count' => (clone $summaryQuery)->count(),
-                'total_amount' => (float) (clone $summaryQuery)->sum('total_amount'),
-                'paid_amount' => (float) (clone $summaryQuery)->sum('paid_amount'),
+                'month' => $month,
+                'total_count' => (clone $summaryQuery)->count(),
                 'overdue_count' => (clone $summaryQuery)->where('status', 'overdue')->count(),
+                'paid_count' => (clone $summaryQuery)->where('status', 'paid')->count(),
+                'partial_count' => (clone $summaryQuery)->where('status', 'partial')->count(),
+                'unpaid_count' => (clone $summaryQuery)->where('status', 'unpaid')->count(),
             ],
         ]);
     }

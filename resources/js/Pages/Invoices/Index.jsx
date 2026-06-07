@@ -26,7 +26,18 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-import { Add as AddIcon, Payments as PaymentsIcon, Print as PrintIcon, ReceiptLong as ReceiptLongIcon, Search as SearchIcon } from '@mui/icons-material';
+import {
+    Add as AddIcon,
+    CheckCircleRounded as PaidIcon,
+    HourglassBottomRounded as PartialIcon,
+    Payments as PaymentsIcon,
+    Print as PrintIcon,
+    ReceiptLong as ReceiptLongIcon,
+    Search as SearchIcon,
+    ScheduleRounded as OverdueIcon,
+    SummarizeRounded as TotalIcon,
+    UnpublishedRounded as UnpaidIcon,
+} from '@mui/icons-material';
 
 const currency = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
@@ -36,6 +47,13 @@ const currency = new Intl.NumberFormat('en-US', {
 const formatCurrency = (value) => currency.format(Number(value || 0));
 const formatDate = (value) => (value ? String(value).slice(0, 10) : '-');
 const formatMonth = (value) => (value ? String(value).slice(0, 7) : '-');
+const formatMonthLabel = (value) => {
+    if (!value || !/^\d{4}-\d{2}$/.test(String(value))) return 'Selected month';
+
+    const [year, monthNumber] = String(value).split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+        .format(new Date(year, monthNumber - 1, 1));
+};
 const formatDaysLeft = (value) => {
     const days = Number(value);
 
@@ -157,26 +175,42 @@ export default function InvoiceIndex({ invoices, filters, summary }) {
         });
     };
 
+    const summaryMonth = formatMonthLabel(summary?.month || filters?.month);
     const cards = [
         {
-            label: 'Invoices',
-            value: summary?.count ?? 0,
-            helper: 'Invoice records in the selected month.',
-        },
-        {
-            label: 'Billed amount',
-            value: formatCurrency(summary?.total_amount),
-            helper: 'Total generated amount for the filtered period.',
-        },
-        {
-            label: 'Collected',
-            value: formatCurrency(summary?.paid_amount),
-            helper: 'Applied payments already linked to invoices.',
+            label: 'Total invoices',
+            value: summary?.total_count ?? 0,
+            helper: `All invoices for ${summaryMonth}.`,
+            icon: <TotalIcon fontSize="small" />,
+            color: '#2563eb',
         },
         {
             label: 'Overdue',
             value: summary?.overdue_count ?? 0,
-            helper: 'Invoices still carrying unpaid overdue balances.',
+            helper: 'Past due with an outstanding balance.',
+            icon: <OverdueIcon fontSize="small" />,
+            color: '#dc2626',
+        },
+        {
+            label: 'Paid',
+            value: summary?.paid_count ?? 0,
+            helper: 'Fully collected invoices.',
+            icon: <PaidIcon fontSize="small" />,
+            color: '#16a34a',
+        },
+        {
+            label: 'Partial',
+            value: summary?.partial_count ?? 0,
+            helper: 'Partially collected with balance remaining.',
+            icon: <PartialIcon fontSize="small" />,
+            color: '#d97706',
+        },
+        {
+            label: 'Unpaid',
+            value: summary?.unpaid_count ?? 0,
+            helper: 'Not yet paid and not overdue.',
+            icon: <UnpaidIcon fontSize="small" />,
+            color: '#64748b',
         },
     ];
 
@@ -199,18 +233,36 @@ export default function InvoiceIndex({ invoices, filters, summary }) {
                         gridTemplateColumns: {
                             xs: '1fr',
                             sm: 'repeat(2, minmax(0, 1fr))',
-                            xl: 'repeat(4, minmax(0, 1fr))',
+                            md: 'repeat(3, minmax(0, 1fr))',
+                            xl: 'repeat(5, minmax(0, 1fr))',
                         },
                     }}
                 >
                     {cards.map((card) => (
-                        <AppSurface key={card.label} sx={{ p: 1.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                                {card.label}
-                            </Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 820, mt: 0.5, mb: 0.5 }}>
-                                {card.value}
-                            </Typography>
+                        <AppSurface key={card.label} sx={{ p: 1.6, minHeight: 142 }}>
+                            <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.4 }}>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {card.label}
+                                    </Typography>
+                                    <Typography variant="h4" sx={{ fontWeight: 850, mt: 0.4 }}>
+                                        {card.value}
+                                    </Typography>
+                                </Box>
+                                <Box
+                                    sx={{
+                                        width: 38,
+                                        height: 38,
+                                        display: 'grid',
+                                        placeItems: 'center',
+                                        borderRadius: 2.5,
+                                        color: card.color,
+                                        bgcolor: `${card.color}14`,
+                                    }}
+                                >
+                                    {card.icon}
+                                </Box>
+                            </Stack>
                             <Typography variant="body2" color="text.secondary">
                                 {card.helper}
                             </Typography>

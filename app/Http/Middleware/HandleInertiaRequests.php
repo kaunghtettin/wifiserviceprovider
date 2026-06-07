@@ -33,6 +33,11 @@ class HandleInertiaRequests extends Middleware
         $path = parse_url($appUrl, PHP_URL_PATH) ?: '';
         $base = rtrim($path, '/');
 
+        $user = $request->user();
+        $activeRole = $user?->activeRole();
+        $activeRole?->loadMissing('permissions');
+        $activeBranch = $user?->activeBranch();
+
         return array_merge(parent::share($request), [
             'admin_app_url' => $appUrl,
             'app_base' => $base,
@@ -42,12 +47,19 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
             ],
             'auth' => [
-                'user' => $request->user(),
-                'role' => fn () => $request->user()?->role?->name,
-                'branch_id' => fn () => $request->user()?->soleBranchId(),
-                'branch_ids' => fn () => $request->user()?->accessibleBranchIds() ?? [],
-                'permissions' => fn () => $request->user()?->role?->permissions?->pluck('key')?->values() ?? [],
-                'is_super_admin' => fn () => (bool) $request->user()?->hasRole('super_admin'),
+                'user' => $user,
+                'workspace' => $user?->workspace(),
+                'role' => $activeRole?->name,
+                'branch' => $activeBranch ? [
+                    'id' => $activeBranch->id,
+                    'name' => $activeBranch->name,
+                    'code' => $activeBranch->code,
+                ] : null,
+                'branch_id' => $user?->activeBranchId(),
+                'branch_ids' => fn () => $user?->accessibleBranchIds() ?? [],
+                'permissions' => $activeRole?->permissions?->pluck('key')?->values() ?? [],
+                'is_super_admin' => (bool) $user?->isSuperAdmin(),
+                'can_access_global' => (bool) $user?->canAccessGlobalWorkspace(),
             ],
         ]);
     }

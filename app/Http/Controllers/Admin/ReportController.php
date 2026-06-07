@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Carbon\Carbon;
@@ -15,7 +17,17 @@ class ReportController extends Controller
 {
     public function index(Request $request): Response
     {
-        [$month, $monthStart, $monthEnd, $asOfDate, $canViewAllBranches, $selectedBranchId, $effectiveBranchIds] = $this->resolveFilters($request);
+        [
+            $month,
+            $monthStart,
+            $monthEnd,
+            $asOfDate,
+            $periodStart,
+            $periodEnd,
+            $canViewAllBranches,
+            $selectedBranchId,
+            $effectiveBranchIds,
+        ] = $this->resolveFilters($request);
 
         $billedQuery = Invoice::query()->whereBetween('invoice_month', [$monthStart->toDateString(), $monthStart->toDateString()]);
         $paymentsQuery = Payment::query()->whereBetween('paid_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()]);
@@ -52,7 +64,67 @@ class ReportController extends Controller
             ->whereIn('status', ['unpaid', 'overdue'])
             ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
             ->count();
-        [$overdueAging, $overdueCustomers] = $this->buildOverdueCustomerAnalysis($asOfDate, $effectiveBranchIds);
+
+        $yearStart = $monthStart->copy()->startOfYear();
+        $yearEnd = $monthStart->copy()->endOfYear();
+
+        $yearPayments = Payment::query()
+            ->whereBetween('paid_at', [$yearStart->copy()->startOfDay(), $yearEnd->copy()->endOfDay()])
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
+            ->get(['amount', 'paid_at']);
+
+        $yearExpenses = Expense::query()
+            ->whereBetween('expense_date', [$yearStart->toDateString(), $yearEnd->toDateString()])
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
+            ->get(['amount', 'expense_date']);
+
+        $salesByMonth = $yearPayments
+            ->groupBy(fn (Payment $payment) => $payment->paid_at->format('n'))
+            ->map(fn ($payments) => (float) $payments->sum('amount'));
+
+        $expensesByMonth = $yearExpenses
+            ->groupBy(fn (Expense $expense) => $expense->expense_date->format('n'))
+            ->map(fn ($expenses) => (float) $expenses->sum('amount'));
+
+        $yearlyTrend = collect(range(1, 12))->map(function (int $monthNumber) use ($monthStart, $salesByMonth, $expensesByMonth) {
+            $sales = (float) ($salesByMonth[$monthNumber] ?? 0);
+            $expenses = (float) ($expensesByMonth[$monthNumber] ?? 0);
+
+            return [
+                'month' => $monthStart->copy()->month($monthNumber)->format('M'),
+                'month_number' => $monthNumber,
+                'sales' => $sales,
+                'expenses' => $expenses,
+                'net_profit' => $sales - $expenses,
+            ];
+        })->values();
+
+        $dailySalesByDay = Payment::query()
+            ->whereBetween('paid_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()])
+            ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
+            ->get(['amount', 'paid_at'])
+            ->groupBy(fn (Payment $payment) => $payment->paid_at->format('j'))
+            ->map(fn ($payments) => (float) $payments->sum('amount'));
+
+        $dailySales = collect(range(1, $monthStart->daysInMonth))->map(fn (int $day) => [
+            'day' => $day,
+            'date' => $monthStart->copy()->day($day)->toDateString(),
+            'sales' => (float) ($dailySalesByDay[$day] ?? 0),
+        ])->values();
+
+        $categoryNames = ExpenseCategory::query()->pluck('name', 'slug');
+        $allTimeExpenseAnalysis = $this->expenseAnalysis(
+            null,
+            null,
+            $effectiveBranchIds,
+            $categoryNames
+        );
+        $periodExpenseAnalysis = $this->expenseAnalysis(
+            $periodStart,
+            $periodEnd,
+            $effectiveBranchIds,
+            $categoryNames
+        );
 
         $branches = $canViewAllBranches
             ? Branch::query()->orderBy('name')->get(['id', 'name'])
@@ -62,6 +134,8 @@ class ReportController extends Controller
             'filters' => [
                 'month' => $month,
                 'as_of_date' => $asOfDate->toDateString(),
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
                 'branch_id' => $canViewAllBranches ? ($selectedBranchId ?: '') : '',
             ],
             'branches' => $branches,
@@ -76,9 +150,14 @@ class ReportController extends Controller
                 'partial_invoice_count' => $partialInvoiceCount,
                 'unpaid_invoice_count' => $unpaidInvoiceCount,
             ],
-            'overdueAging' => $overdueAging,
-            'overdueCustomers' => $overdueCustomers,
-            'canManageCustomers' => (bool) $request->user()?->hasPermission('customers.manage'),
+            'yearlyTrend' => $yearlyTrend,
+            'dailySales' => $dailySales,
+            'expenseAnalysis' => [
+                'all_time' => $allTimeExpenseAnalysis,
+                'selected_period' => $periodExpenseAnalysis,
+                'selected_period_total' => round((float) $periodExpenseAnalysis->sum('amount'), 2),
+                'all_time_total' => round((float) $allTimeExpenseAnalysis->sum('amount'), 2),
+            ],
         ]);
     }
 
@@ -96,6 +175,17 @@ class ReportController extends Controller
         }
 
         $monthEnd = $monthStart->copy()->endOfMonth();
+        try {
+            $periodStart = Carbon::parse((string) $request->query('period_start', $monthStart->toDateString()))->startOfDay();
+            $periodEnd = Carbon::parse((string) $request->query('period_end', $monthEnd->toDateString()))->endOfDay();
+
+            if ($periodStart->greaterThan($periodEnd)) {
+                throw new \InvalidArgumentException('Invalid report period.');
+            }
+        } catch (\Throwable $exception) {
+            $periodStart = $monthStart->copy()->startOfDay();
+            $periodEnd = $monthEnd->copy()->endOfDay();
+        }
         $today = now()->startOfDay();
         $asOfDate = $monthEnd->lessThan($today) ? $monthEnd->copy()->startOfDay() : $today;
         $canViewAllBranches = (bool) $user?->canViewAllBranches();
@@ -103,93 +193,48 @@ class ReportController extends Controller
             ? ($selectedBranchId > 0 ? [$selectedBranchId] : null)
             : ($user?->accessibleBranchIds() ?? []);
 
-        return [$month, $monthStart, $monthEnd, $asOfDate, $canViewAllBranches, $selectedBranchId, $effectiveBranchIds];
+        return [
+            $month,
+            $monthStart,
+            $monthEnd,
+            $asOfDate,
+            $periodStart,
+            $periodEnd,
+            $canViewAllBranches,
+            $selectedBranchId,
+            $effectiveBranchIds,
+        ];
     }
 
     /**
      * @param  array<int, int>|null  $effectiveBranchIds
+     * @param  \Illuminate\Support\Collection<string, string>  $categoryNames
      */
-    private function buildOverdueCustomerAnalysis(Carbon $asOfDate, ?array $effectiveBranchIds): array
-    {
-        $overdueInvoiceRows = Invoice::query()
-            ->select([
-                'customer_id',
-                'branch_id',
-                'invoice_month',
-                'due_date',
-                'balance_amount',
-            ])
-            ->where('balance_amount', '>', 0)
-            ->whereDate('due_date', '<', $asOfDate->toDateString())
+    private function expenseAnalysis(
+        ?Carbon $periodStart,
+        ?Carbon $periodEnd,
+        ?array $effectiveBranchIds,
+        $categoryNames
+    ) {
+        return Expense::query()
+            ->selectRaw('category, COUNT(*) as expense_count, SUM(amount) as total_amount')
+            ->when(
+                $periodStart && $periodEnd,
+                fn ($query) => $query->whereBetween('expense_date', [
+                    $periodStart->toDateString(),
+                    $periodEnd->toDateString(),
+                ])
+            )
             ->when($effectiveBranchIds !== null, fn ($query) => $query->whereIn('branch_id', $effectiveBranchIds))
-            ->orderByDesc('invoice_month')
-            ->orderByDesc('due_date')
-            ->get();
-
-        $customersById = \App\Models\Customer::query()
-            ->whereIn('id', $overdueInvoiceRows->pluck('customer_id')->filter()->unique()->values())
-            ->get(['id', 'name', 'customer_code', 'phone', 'status'])
-            ->keyBy('id');
-
-        $branchesById = Branch::query()
-            ->whereIn('id', $overdueInvoiceRows->pluck('branch_id')->filter()->unique()->values())
-            ->get(['id', 'name'])
-            ->keyBy('id');
-
-        $overdueCustomers = $overdueInvoiceRows
-            ->groupBy(fn ($row) => "{$row->customer_id}:{$row->branch_id}")
-            ->map(function ($rows) use ($customersById, $branchesById, $asOfDate) {
-                $firstRow = $rows->first();
-
-                if (!$firstRow) {
-                    return null;
-                }
-
-                $customer = $customersById->get($firstRow->customer_id);
-                $branch = $branchesById->get($firstRow->branch_id);
-                $oldestDueDate = Carbon::parse($rows->min('due_date'))->startOfDay();
-                $daysOverdue = $oldestDueDate->diffInDays($asOfDate);
-
-                return [
-                    'customer_id' => (int) $firstRow->customer_id,
-                    'branch_id' => (int) $firstRow->branch_id,
-                    'days_overdue' => $daysOverdue,
-                    'invoice_count' => $rows->count(),
-                    'bucket_key' => $daysOverdue > 60 ? '61_plus_days' : ($daysOverdue > 30 ? '31_60_days' : '1_30_days'),
-                    'overdue_balance' => round((float) $rows->sum(fn ($row) => (float) ($row->balance_amount ?? 0)), 2),
-                    'oldest_due_date' => $oldestDueDate->toDateString(),
-                    'customer' => $customer ? [
-                        'id' => $customer->id,
-                        'name' => $customer->name,
-                        'customer_code' => $customer->customer_code,
-                        'phone' => $customer->phone,
-                        'status' => $customer->status,
-                    ] : null,
-                    'branch' => $branch ? [
-                        'id' => $branch->id,
-                        'name' => $branch->name,
-                    ] : null,
-                ];
-            })
-            ->filter()
-            ->sort(fn (array $left, array $right) => [$right['days_overdue'], $right['overdue_balance']] <=> [$left['days_overdue'], $left['overdue_balance']])
+            ->groupBy('category')
+            ->orderByDesc('total_amount')
+            ->get()
+            ->map(fn ($row) => [
+                'category' => $row->category,
+                'label' => $categoryNames[$row->category] ?? str($row->category)->replace('_', ' ')->title()->value(),
+                'count' => (int) $row->expense_count,
+                'amount' => round((float) $row->total_amount, 2),
+            ])
             ->values();
-
-        $overdueAging = collect([
-            ['key' => '1_30_days', 'label' => '1-30 days'],
-            ['key' => '31_60_days', 'label' => '31-60 days'],
-            ['key' => '61_plus_days', 'label' => '61+ days'],
-        ])->map(function (array $bucket) use ($overdueCustomers) {
-            $matches = $overdueCustomers->where('bucket_key', $bucket['key']);
-
-            return [
-                'key' => $bucket['key'],
-                'label' => $bucket['label'],
-                'customer_count' => $matches->count(),
-                'balance_amount' => round((float) $matches->sum('overdue_balance'), 2),
-            ];
-        })->values();
-
-        return [$overdueAging, $overdueCustomers];
     }
 }

@@ -20,13 +20,13 @@ class InitialSetupSeeder extends Seeder
         );
 
         $roles = [
-            'super_admin' => 'Full system access',
-            'admin' => 'Branch-level management',
-            'staff' => 'Limited access',
+            'super_admin' => ['scope' => 'global', 'description' => 'Full system access'],
+            'admin' => ['scope' => 'branch', 'description' => 'Branch-level management'],
+            'staff' => ['scope' => 'branch', 'description' => 'Limited branch access'],
         ];
 
-        foreach ($roles as $name => $description) {
-            Role::firstOrCreate(['name' => $name], ['description' => $description]);
+        foreach ($roles as $name => $attributes) {
+            Role::updateOrCreate(['name' => $name], $attributes);
         }
 
         $permissions = [
@@ -40,6 +40,7 @@ class InitialSetupSeeder extends Seeder
             ['key' => 'invoices.manage', 'description' => 'Manage invoices'],
             ['key' => 'payments.manage', 'description' => 'Manage payments & receipts'],
             ['key' => 'expenses.manage', 'description' => 'Manage expenses'],
+            ['key' => 'reports.global', 'description' => 'View the consolidated global summary'],
         ];
 
         foreach ($permissions as $permission) {
@@ -101,7 +102,9 @@ class InitialSetupSeeder extends Seeder
         $superAdminUser->save();
 
         // Attach the default branch via the new many-to-many relation
-        $superAdminUser->branches()->syncWithoutDetaching([$defaultBranch->id]);
+        $superAdminUser->branches()->syncWithoutDetaching([
+            $defaultBranch->id => ['role_id' => $admin?->id],
+        ]);
 
         // Ensure the first created user has the super_admin role if missing (no branch_id fallback needed anymore)
         $firstUser = User::orderBy('id')->first();

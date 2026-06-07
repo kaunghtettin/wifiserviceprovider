@@ -55,9 +55,7 @@ class WifiPackageController extends Controller
     {
         $user = $request->user();
 
-        $branchId = $user?->canViewAllBranches()
-            ? ($request->input('branch_id') ?: null)
-            : ($request->input('branch_id') ?: $user?->soleBranchId());
+        $branchId = $user?->activeBranchId();
 
         if (!$user?->canViewAllBranches() && (!$branchId || !$user?->canAccessBranch((int) $branchId))) {
             abort(422, 'Branch is required.');
@@ -66,7 +64,7 @@ class WifiPackageController extends Controller
         $request->merge(['branch_id' => $branchId]);
 
         $data = $request->validate([
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
             'name' => [
                 'required',
                 'string',
@@ -93,9 +91,7 @@ class WifiPackageController extends Controller
             abort(403);
         }
 
-        $branchId = $user?->canViewAllBranches()
-            ? ($request->input('branch_id') ?: null)
-            : ($request->input('branch_id') ?: $package->branch_id);
+        $branchId = $user?->activeBranchId();
 
         if ($branchId && !$user?->canAccessBranch((int) $branchId)) {
             abort(422, 'The selected branch is not available.');
@@ -104,7 +100,7 @@ class WifiPackageController extends Controller
         $request->merge(['branch_id' => $branchId]);
 
         $data = $request->validate([
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
             'name' => [
                 'required',
                 'string',

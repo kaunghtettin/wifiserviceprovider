@@ -17,21 +17,15 @@ class UserController extends Controller
 {
     public function index(Request $request): Response
     {
-        $authUser = $request->user();
         $search = trim((string) $request->query('q', ''));
 
-        $query = User::query()->with(['branches:id,name', 'role:id,name'])->orderByDesc('id');
-
-        if (!$authUser?->hasRole('super_admin') && !$authUser?->hasPermission('branches.view_all')) {
-            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
-            $query->whereHas('branches', function ($q) use ($authBranchIds) {
-                $q->whereIn('branches.id', $authBranchIds);
-            });
-        }
+        $query = User::query()
+            ->with(['branches:id,name,code', 'role:id,name,scope'])
+            ->orderByDesc('id');
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
                     ->orWhere('phone', 'like', '%'.$search.'%');
             });
@@ -46,70 +40,44 @@ class UserController extends Controller
             'status',
             'last_login_at',
             'created_at',
-        ]);
-
-        $branches = [];
-        $roles = [];
-        $canAssignBranch = false;
-        $canAssignRole = false;
-
-        if ($authUser?->hasRole('super_admin')) {
-            $branches = Branch::query()->orderBy('name')->get(['id', 'name']);
-            $roles = Role::query()->orderBy('name')->get(['id', 'name']);
-            $canAssignBranch = true;
-            $canAssignRole = true;
-        } else {
-            $roles = Role::query()
-                ->whereIn('name', ['staff'])
-                ->orderBy('name')
-                ->get(['id', 'name']);
-        }
+        ])->map(function (User $user) {
+            return [
+                'id' => $user->id,
+                'global_role_id' => $user->role_id,
+                'global_role' => $user->role,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'status' => $user->status,
+                'last_login_at' => $user->last_login_at,
+                'branch_assignments' => $user->branches->map(fn (Branch $branch) => [
+                    'branch_id' => $branch->id,
+                    'branch_name' => $branch->name,
+                    'branch_code' => $branch->code,
+                    'role_id' => $branch->pivot?->role_id,
+                    'role_name' => $branch->pivot?->role_id
+                        ? Role::query()->whereKey($branch->pivot->role_id)->value('name')
+                        : null,
+                ])->values(),
+            ];
+        });
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'branches' => $branches,
-            'roles' => $roles,
-            'canAssignBranch' => $canAssignBranch,
-            'canAssignRole' => $canAssignRole,
+            'branches' => Branch::query()->orderBy('name')->get(['id', 'name', 'code']),
+            'branchRoles' => Role::query()->where('scope', 'branch')->orderBy('name')->get(['id', 'name']),
+            'globalRoles' => Role::query()->where('scope', 'global')->orderBy('name')->get(['id', 'name']),
             'filters' => ['q' => $search],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $authUser = $request->user();
-
-        $roleId = $authUser?->hasRole('super_admin')
-            ? ($request->input('role_id') ?: null)
-            : Role::where('name', 'staff')->value('id');
-
-        $request->merge(['role_id' => $roleId]);
-
-        $data = $request->validate([
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
-            'branch_ids' => ['array'],
-            'branch_ids.*' => ['integer', 'exists:branches,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:64'],
-            'status' => ['required', Rule::in(['active', 'disabled'])],
-            'password' => ['required', 'string', 'min:6'],
-        ]);
-
-        $targetRoleName = Role::where('id', $data['role_id'])->value('name');
-
-        if (!$authUser?->hasRole('super_admin')) {
-            if ($targetRoleName !== 'staff') {
-                abort(403);
-            }
-        }
-
-        $branchIds = $authUser?->hasRole('super_admin')
-            ? ($data['branch_ids'] ?? [])
-            : ($authUser?->accessibleBranchIds() ?? []);
+        $data = $this->validateUser($request);
+        $this->authorizeAssignments($request, $data);
 
         $user = User::create([
-            'role_id' => $data['role_id'],
+            'role_id' => $data['global_role_id'] ?? null,
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
@@ -117,57 +85,22 @@ class UserController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        if (!empty($branchIds)) {
-            $user->branches()->sync($branchIds);
-        }
+        $user->branches()->sync($this->pivotAssignments($data['branch_assignments'] ?? []));
 
         return redirect()->route('admin.users.index');
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $authUser = $request->user();
-
-        if ($authUser && $user->id === $authUser->id) {
+        if ($request->user()->is($user)) {
             abort(422, 'Use Profile to update your own account.');
         }
 
-        if (!$authUser?->hasRole('super_admin')) {
-            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
-            $targetBranchIds = $user->accessibleBranchIds();
-            if (empty(array_intersect($authBranchIds, $targetBranchIds))) {
-                abort(403);
-            }
-        }
-
-        if (!$authUser?->hasRole('super_admin') && $user->role?->name === 'super_admin') {
-            abort(403);
-        }
-
-        $roleId = $authUser?->hasRole('super_admin') ? ($request->input('role_id') ?: null) : Role::where('name', 'staff')->value('id');
-
-        $request->merge(['role_id' => $roleId]);
-
-        $data = $request->validate([
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
-            'branch_ids' => ['array'],
-            'branch_ids.*' => ['integer', 'exists:branches,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:64'],
-            'status' => ['required', Rule::in(['active', 'disabled'])],
-            'password' => ['nullable', 'string', 'min:6'],
-        ]);
-
-        $targetRoleName = Role::where('id', $data['role_id'])->value('name');
-        if (!$authUser?->hasRole('super_admin')) {
-            if ($targetRoleName !== 'staff') {
-                abort(403);
-            }
-        }
+        $data = $this->validateUser($request, $user);
+        $this->authorizeAssignments($request, $data, $user);
 
         $user->fill([
-            'role_id' => $data['role_id'],
+            'role_id' => $data['global_role_id'] ?? null,
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
@@ -179,36 +112,78 @@ class UserController extends Controller
         }
 
         $user->save();
-
-        if ($authUser?->hasRole('super_admin')) {
-            $user->branches()->sync($data['branch_ids'] ?? []);
-        }
+        $user->branches()->sync($this->pivotAssignments($data['branch_assignments'] ?? []));
 
         return redirect()->route('admin.users.index');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
-        $authUser = $request->user();
-
-        if ($authUser && $user->id === $authUser->id) {
+        if ($request->user()->is($user)) {
             abort(422, 'You cannot delete your own account.');
         }
 
-        if (!$authUser?->hasRole('super_admin')) {
-            $authBranchIds = $authUser?->accessibleBranchIds() ?? [];
-            $targetBranchIds = $user->accessibleBranchIds();
-            if (empty(array_intersect($authBranchIds, $targetBranchIds))) {
-                abort(403);
-            }
-        }
-
-        if ($user->role?->name === 'super_admin' && !$authUser?->hasRole('super_admin')) {
+        if ($user->isSuperAdmin() && !$request->user()->isSuperAdmin()) {
             abort(403);
         }
 
         $user->delete();
 
         return redirect()->route('admin.users.index');
+    }
+
+    private function validateUser(Request $request, ?User $user = null): array
+    {
+        return $request->validate([
+            'global_role_id' => ['nullable', 'integer', 'exists:roles,id'],
+            'branch_assignments' => ['array'],
+            'branch_assignments.*.branch_id' => ['required', 'integer', 'distinct', 'exists:branches,id'],
+            'branch_assignments.*.role_id' => ['required', 'integer', 'exists:roles,id'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                $user ? Rule::unique('users', 'email')->ignore($user->id) : Rule::unique('users', 'email'),
+            ],
+            'phone' => ['nullable', 'string', 'max:64'],
+            'status' => ['required', Rule::in(['active', 'disabled'])],
+            'password' => [$user ? 'nullable' : 'required', 'string', 'min:6'],
+        ]);
+    }
+
+    private function authorizeAssignments(Request $request, array $data, ?User $target = null): void
+    {
+        $globalRoleId = $data['global_role_id'] ?? null;
+        if ($globalRoleId) {
+            $globalRole = Role::query()->findOrFail($globalRoleId);
+            abort_unless($globalRole->scope === 'global', 422, 'The global role is invalid.');
+
+            if ($globalRole->name === 'super_admin' && !$request->user()->isSuperAdmin()) {
+                abort(403);
+            }
+        }
+
+        if ($target?->isSuperAdmin() && !$request->user()->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $branchRoleIds = collect($data['branch_assignments'] ?? [])->pluck('role_id')->unique();
+        $validCount = Role::query()
+            ->where('scope', 'branch')
+            ->whereIn('id', $branchRoleIds)
+            ->count();
+
+        abort_unless($validCount === $branchRoleIds->count(), 422, 'Every branch must use a branch role.');
+    }
+
+    private function pivotAssignments(array $assignments): array
+    {
+        return collect($assignments)
+            ->mapWithKeys(fn (array $assignment) => [
+                (int) $assignment['branch_id'] => ['role_id' => (int) $assignment['role_id']],
+            ])
+            ->all();
     }
 }

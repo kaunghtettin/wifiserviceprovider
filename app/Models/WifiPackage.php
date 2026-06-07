@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BranchScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WifiPackage extends Model
 {
-    use HasFactory;
+    use BranchScoped, HasFactory;
 
     protected $fillable = [
         'branch_id',
@@ -31,4 +32,3 @@ class WifiPackage extends Model
         return $this->belongsTo(Branch::class);
     }
 }
-

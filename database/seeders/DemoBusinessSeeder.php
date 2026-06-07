@@ -143,7 +143,9 @@ class DemoBusinessSeeder extends Seeder
         if ($superAdmin) {
             $superAdmin->update(['role_id' => $superAdminRole->id]);
             if ($branches->first()) {
-                $superAdmin->branches()->syncWithoutDetaching([$branches->first()->id]);
+                $superAdmin->branches()->syncWithoutDetaching([
+                    $branches->first()->id => ['role_id' => $adminRole->id],
+                ]);
             }
         }
 
@@ -161,7 +163,9 @@ class DemoBusinessSeeder extends Seeder
                     'email_verified_at' => now(),
                 ]
             );
-            $admin->branches()->syncWithoutDetaching([$branch->id]);
+            $admin->branches()->syncWithoutDetaching([
+                $branch->id => ['role_id' => $adminRole->id],
+            ]);
 
             $staffMembers = collect();
             foreach ([1, 2] as $number) {
@@ -176,7 +180,9 @@ class DemoBusinessSeeder extends Seeder
                         'email_verified_at' => now(),
                     ]
                 );
-                $staff->branches()->syncWithoutDetaching([$branch->id]);
+                $staff->branches()->syncWithoutDetaching([
+                    $branch->id => ['role_id' => $staffRole->id],
+                ]);
                 $staffMembers->push($staff);
             }
 

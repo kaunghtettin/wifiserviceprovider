@@ -135,7 +135,7 @@ class BranchAccessTest extends TestCase
             );
     }
 
-    public function test_reports_and_performance_include_only_assigned_branches(): void
+    public function test_reports_include_only_assigned_branches(): void
     {
         [$user, $assignedBranches, $otherBranch] = $this->createBranchUser(['dashboard.view']);
 
@@ -187,14 +187,6 @@ class BranchAccessTest extends TestCase
                 ->where('summary.collected_amount', 10000)
             );
 
-        $this->actingAs($user)
-            ->get(route('admin.performance.index', ['month' => '2026-06']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('summary.income_total', 10000)
-                ->where('summary.expense_total', 2000)
-                ->where('branchPerformance', fn ($branches) => count($branches) === 2)
-            );
     }
 
     /**
