@@ -37,17 +37,18 @@ class CustomerBillingAccessTest extends TestCase
         $customer = $this->createCustomer($branch, 'New Customer');
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
             ->post(route('admin.customers.invoices.store', $customer), [
                 'month' => '2026-06',
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('invoices', [
-            'customer_id' => $customer->id,
-            'branch_id' => $branch->id,
-            'invoice_month' => '2026-06-01',
-            'generated_by_user_id' => $user->id,
-        ]);
+        $this->assertTrue(Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->where('branch_id', $branch->id)
+            ->whereDate('invoice_month', '2026-06-01')
+            ->where('generated_by_user_id', $user->id)
+            ->exists());
     }
 
     public function test_customer_invoice_generation_does_not_create_a_duplicate_month(): void
@@ -57,8 +58,11 @@ class CustomerBillingAccessTest extends TestCase
 
         $payload = ['month' => '2026-06'];
 
-        $this->actingAs($user)->post(route('admin.customers.invoices.store', $customer), $payload);
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->post(route('admin.customers.invoices.store', $customer), $payload);
+        $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
             ->post(route('admin.customers.invoices.store', $customer), $payload)
             ->assertSessionHas('warning');
 
@@ -72,6 +76,7 @@ class CustomerBillingAccessTest extends TestCase
         $customer = $this->createCustomer($otherBranch, 'Hidden Customer');
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $user->branches()->value('branches.id')])
             ->post(route('admin.customers.invoices.store', $customer), [
                 'month' => '2026-06',
             ])
@@ -87,6 +92,7 @@ class CustomerBillingAccessTest extends TestCase
         $invoice = $this->createInvoice($customer);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
             ->post(route('admin.customers.payments.store', $customer), [
                 'invoice_id' => $invoice->id,
                 'amount' => 35000,
@@ -117,6 +123,7 @@ class CustomerBillingAccessTest extends TestCase
         $otherInvoice = $this->createInvoice($otherCustomer);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
             ->post(route('admin.customers.payments.store', $selectedCustomer), [
                 'invoice_id' => $otherInvoice->id,
                 'amount' => 1000,
@@ -148,7 +155,7 @@ class CustomerBillingAccessTest extends TestCase
             'role_id' => $role->id,
             'status' => 'active',
         ]);
-        $user->branches()->sync([$branch->id]);
+        $user->branches()->sync([$branch->id => ['role_id' => $role->id]]);
 
         return [$user->fresh(), $branch];
     }

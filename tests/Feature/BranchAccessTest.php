@@ -47,16 +47,17 @@ class BranchAccessTest extends TestCase
         $this->createInvoice($hiddenCustomer);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $assignedBranches[0]->id])
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Dashboard')
-                ->where('dashboard.scope_label', '2 assigned branches')
+                ->where('dashboard.scope_label', '1 assigned branch')
                 ->where('dashboard.cards.0.key', 'customers')
-                ->where('dashboard.cards.0.value', 2)
+                ->where('dashboard.cards.0.value', 1)
                 ->where('dashboard.cards.1.key', 'outstanding')
-                ->where('dashboard.cards.1.value', 70000)
-                ->has('dashboard.recent_customers', 2)
+                ->where('dashboard.cards.1.value', 35000)
+                ->has('dashboard.recent_customers', 1)
             );
     }
 
@@ -71,14 +72,23 @@ class BranchAccessTest extends TestCase
         $hiddenCustomer = $this->createCustomer($otherBranch, 'Hidden Customer');
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $assignedBranches[0]->id])
             ->post(route('admin.invoices.store'), ['month' => '2026-06'])
             ->assertRedirect(route('admin.invoices.index', ['month' => '2026-06']));
 
-        $this->assertDatabaseCount('invoices', 2);
-        $this->assertDatabaseMissing('invoices', [
-            'customer_id' => $hiddenCustomer->id,
-            'invoice_month' => '2026-06-01',
-        ]);
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertTrue(Invoice::query()
+            ->where('branch_id', $assignedBranches[0]->id)
+            ->whereDate('invoice_month', '2026-06-01')
+            ->exists());
+        $this->assertFalse(Invoice::query()
+            ->where('branch_id', $assignedBranches[1]->id)
+            ->whereDate('invoice_month', '2026-06-01')
+            ->exists());
+        $this->assertFalse(Invoice::query()
+            ->where('customer_id', $hiddenCustomer->id)
+            ->whereDate('invoice_month', '2026-06-01')
+            ->exists());
     }
 
     public function test_user_cannot_record_payment_for_an_unassigned_branch(): void
@@ -88,13 +98,14 @@ class BranchAccessTest extends TestCase
         $invoice = $this->createInvoice($customer);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $user->branches()->value('branches.id')])
             ->post(route('admin.payments.store'), [
                 'invoice_id' => $invoice->id,
                 'amount' => 1000,
                 'paid_at' => '2026-06-07',
                 'method' => 'cash',
             ])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertDatabaseCount('payments', 0);
     }
@@ -105,14 +116,9 @@ class BranchAccessTest extends TestCase
         $this->createCustomer($otherBranch, 'Hidden Customer');
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $otherBranch->id])
             ->get(route('admin.dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('dashboard.scope_label', '0 assigned branches')
-                ->where('dashboard.cards.0.value', 0)
-                ->has('dashboard.recent_customers', 0)
-                ->where('auth.branch_ids', [])
-            );
+            ->assertRedirect(route('admin.workspaces.index'));
     }
 
     public function test_dashboard_shortcuts_follow_the_users_permissions(): void
@@ -120,6 +126,7 @@ class BranchAccessTest extends TestCase
         [$user] = $this->createBranchUser(['customers.manage']);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $user->branches()->value('branches.id')])
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -180,11 +187,12 @@ class BranchAccessTest extends TestCase
         ]);
 
         $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $assignedBranches[0]->id])
             ->get(route('admin.reports.index', ['month' => '2026-06']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('summary.billed_amount', 25000)
-                ->where('summary.collected_amount', 10000)
+                ->where('summary.billed_amount', 10000)
+                ->where('summary.collected_amount', 5000)
             );
 
     }
@@ -220,7 +228,11 @@ class BranchAccessTest extends TestCase
         ]);
 
         if ($attachBranches) {
-            $user->branches()->sync(collect($assignedBranches)->pluck('id'));
+            $user->branches()->sync(
+                collect($assignedBranches)
+                    ->mapWithKeys(fn (Branch $branch) => [$branch->id => ['role_id' => $role->id]])
+                    ->all()
+            );
         }
 
         return [$user->fresh(), $assignedBranches, $otherBranch];

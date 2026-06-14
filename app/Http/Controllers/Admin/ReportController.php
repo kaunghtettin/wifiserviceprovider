@@ -29,7 +29,7 @@ class ReportController extends Controller
             $effectiveBranchIds,
         ] = $this->resolveFilters($request);
 
-        $billedQuery = Invoice::query()->whereBetween('invoice_month', [$monthStart->toDateString(), $monthStart->toDateString()]);
+        $billedQuery = Invoice::query()->whereDate('invoice_month', $monthStart->toDateString());
         $paymentsQuery = Payment::query()->whereBetween('paid_at', [$monthStart->copy()->startOfDay(), $monthEnd->copy()->endOfDay()]);
         $overdueQuery = Invoice::query()
             ->where('balance_amount', '>', 0)
