@@ -85,6 +85,7 @@ class CustomerController extends Controller
         $search = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', ''));
         $branchId = (int) $request->query('branch_id', 0);
+        $packageId = (int) $request->query('package_id', 0);
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
         $canViewAllBranches = $this->canViewAllBranches($request);
         $userBranchIds = $user?->accessibleBranchIds() ?? [];
@@ -105,12 +106,17 @@ class CustomerController extends Controller
                     ->orWhere('phone', 'like', '%'.$search.'%')
                     ->orWhere('customer_code', 'like', '%'.$search.'%')
                     ->orWhere('ftth_account_name', 'like', '%'.$search.'%')
-                    ->orWhere('ftth_id', 'like', '%'.$search.'%');
+                    ->orWhere('ftth_id', 'like', '%'.$search.'%')
+                    ->orWhere('address', 'like', '%'.$search.'%');
             });
         }
 
         if (in_array($status, self::FILTERABLE_STATUSES, true)) {
             $customersQuery->where('status', $status);
+        }
+
+        if ($packageId > 0) {
+            $customersQuery->where('wifi_package_id', $packageId);
         }
 
         $summaryQuery = clone $customersQuery;
@@ -152,6 +158,7 @@ class CustomerController extends Controller
                 'q' => $search,
                 'status' => in_array($status, self::FILTERABLE_STATUSES, true) ? $status : '',
                 'branch_id' => $canViewAllBranches && $branchId > 0 ? $branchId : '',
+                'package_id' => $packageId > 0 ? $packageId : '',
                 'per_page' => $perPage,
             ],
         ]);

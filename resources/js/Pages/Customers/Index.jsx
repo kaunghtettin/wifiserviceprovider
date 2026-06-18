@@ -86,6 +86,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
     const [query, setQuery] = useState(filters?.q || '');
     const [statusFilter, setStatusFilter] = useState(filters?.status || '');
     const [branchFilter, setBranchFilter] = useState(filters?.branch_id || '');
+    const [packageFilter, setPackageFilter] = useState(filters?.package_id || '');
     const perPage = Number(filters?.per_page || customers?.per_page || 15);
 
     const rows = useMemo(() => customers?.data || [], [customers]);
@@ -178,6 +179,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                 q: query || '',
                 status: statusFilter || '',
                 branch_id: canFilterBranch ? branchFilter || '' : '',
+                package_id: packageFilter || '',
                 per_page: perPage,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -188,6 +190,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
         setQuery('');
         setStatusFilter('');
         setBranchFilter('');
+        setPackageFilter('');
         router.get(
             `${admin_app_url}/customers`,
             { per_page: perPage },
@@ -271,8 +274,8 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                         ? 'minmax(220px, 1.6fr) minmax(140px, 1fr)'
                                         : 'minmax(220px, 1.8fr) minmax(140px, 1fr)',
                                     md: canFilterBranch
-                                        ? 'minmax(240px, 1.8fr) minmax(140px, 0.9fr) minmax(160px, 1fr) auto'
-                                        : 'minmax(260px, 2fr) minmax(150px, 1fr) auto',
+                                        ? 'minmax(240px, 1.8fr) minmax(140px, 0.8fr) minmax(170px, 1fr) minmax(170px, 1fr) auto'
+                                        : 'minmax(260px, 2fr) minmax(150px, 0.85fr) minmax(170px, 1fr) auto',
                                 },
                                 alignItems: 'start',
                             }}
@@ -284,7 +287,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 <TextField
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Customer, phone, code, or FTTH"
+                                    placeholder="Customer, phone, code, FTTH ID, or address"
                                     size="small"
                                     fullWidth
                                     onKeyDown={(e) => {
@@ -315,6 +318,25 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     <MenuItem value="pending">Pending</MenuItem>
                                     <MenuItem value="suspended">Suspended</MenuItem>
                                     <MenuItem value="disconnected">Disconnected</MenuItem>
+                                </TextField>
+                            </Stack>
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Package
+                                </Typography>
+                                <TextField
+                                    select
+                                    size="small"
+                                    value={packageFilter}
+                                    onChange={(e) => setPackageFilter(e.target.value)}
+                                    fullWidth
+                                >
+                                    <MenuItem value="">All packages</MenuItem>
+                                    {packageOptions.map((p) => (
+                                        <MenuItem key={p.id} value={p.id}>
+                                            {p.name} ({p.speed_mbps} Mbps)
+                                        </MenuItem>
+                                    ))}
                                 </TextField>
                             </Stack>
                             {canFilterBranch ? (
@@ -364,7 +386,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     >
                                         Apply
                                     </Button>
-                                    {query || statusFilter || branchFilter ? (
+                                    {query || statusFilter || branchFilter || packageFilter ? (
                                         <Button
                                             variant="text"
                                             color="inherit"
