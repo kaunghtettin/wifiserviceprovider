@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Super (Excellent Wifi Service)'),
+    'name' => env('APP_NAME', 'Super Excellent Wifi Solutions'),
 
     /*
     |--------------------------------------------------------------------------

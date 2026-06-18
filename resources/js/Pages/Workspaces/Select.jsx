@@ -121,18 +121,19 @@ export default function SelectWorkspace({ branches = [], canAccessGlobal }) {
                                         display: 'grid',
                                         placeItems: 'center',
                                         borderRadius: 2.5,
-                                        background: 'linear-gradient(145deg, #0f2d55, #2563eb)',
+                                        bgcolor: '#ffffff',
+                                        border: '1px solid rgba(37,99,235,0.14)',
                                         boxShadow: '0 12px 28px rgba(37,99,235,0.22)',
                                     }}
                                 >
-                                    <Box component="img" src={logoSrc} alt="Super Wifi" sx={{ width: 29, height: 29 }} />
+                                    <Box component="img" src={logoSrc} alt="Super Excellent Wifi Solutions" sx={{ width: 29, height: 29 }} />
                                 </Box>
                                 <Box>
                                     <Typography sx={{ fontWeight: 850, lineHeight: 1.15 }}>
-                                        Super
+                                        Super Excellent
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        Excellent Wifi Service
+                                        Wifi Solutions
                                     </Typography>
                                 </Box>
                             </Stack>

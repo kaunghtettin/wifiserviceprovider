@@ -103,7 +103,9 @@ class CustomerController extends Controller
             $customersQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%'.$search.'%')
                     ->orWhere('phone', 'like', '%'.$search.'%')
-                    ->orWhere('customer_code', 'like', '%'.$search.'%');
+                    ->orWhere('customer_code', 'like', '%'.$search.'%')
+                    ->orWhere('ftth_account_name', 'like', '%'.$search.'%')
+                    ->orWhere('ftth_id', 'like', '%'.$search.'%');
             });
         }
 
@@ -119,6 +121,8 @@ class CustomerController extends Controller
             'branch_id',
             'wifi_package_id',
             'name',
+            'ftth_account_name',
+            'ftth_id',
             'phone',
             'billing_day_of_month',
             'status',
@@ -288,6 +292,8 @@ class CustomerController extends Controller
                 'branch_id',
                 'wifi_package_id',
                 'name',
+                'ftth_account_name',
+                'ftth_id',
                 'phone',
                 'nrc',
                 'address',
@@ -333,6 +339,8 @@ class CustomerController extends Controller
                 ),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'ftth_account_name' => ['nullable', 'string', 'max:255'],
+            'ftth_id' => ['nullable', 'string', 'max:128'],
             'phone' => ['required', 'string', 'max:64'],
             'nrc' => ['nullable', 'string', 'max:64'],
             'address' => ['nullable', 'string', 'max:2000'],
@@ -434,6 +442,8 @@ class CustomerController extends Controller
                 ),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'ftth_account_name' => ['nullable', 'string', 'max:255'],
+            'ftth_id' => ['nullable', 'string', 'max:128'],
             'phone' => ['required', 'string', 'max:64'],
             'nrc' => ['nullable', 'string', 'max:64'],
             'address' => ['nullable', 'string', 'max:2000'],

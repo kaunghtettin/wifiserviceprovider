@@ -319,22 +319,22 @@ export default function AdminLayout({ children, title = 'Admin Panel' }) {
                         borderRadius: '12px',
                         display: 'grid',
                         placeItems: 'center',
-                        background: 'linear-gradient(135deg, rgba(59,130,246,0.34), rgba(139,92,246,0.16))',
-                        border: '1px solid rgba(147,197,253,0.18)',
+                        bgcolor: '#ffffff',
+                        border: '1px solid rgba(255,255,255,0.75)',
                         boxShadow: '0 10px 24px rgba(2, 6, 23, 0.34)',
                         flexShrink: 0,
                     }}
                 >
-                    <Box component="img" src={`${appBase}/app_logo_transparent.png`} alt="Logo" sx={{ width: 28, height: 28 }} />
+                    <Box component="img" src={`${appBase}/app_logo_transparent.png`} alt="Super Excellent Wifi Solutions" sx={{ width: 28, height: 28 }} />
                 </Box>
 
                 {(desktopOpen || isMobile) && (
                     <Box sx={{ minWidth: 0 }}>
                         <Typography variant="subtitle1" sx={{ color: drawerText, fontWeight: 800, lineHeight: 1.1 }}>
-                            Super
+                            Super Excellent
                         </Typography>
                         <Typography variant="caption" sx={{ color: drawerMutedText }}>
-                            Excellent Wifi Service
+                            Wifi Solutions
                         </Typography>
                     </Box>
                 )}

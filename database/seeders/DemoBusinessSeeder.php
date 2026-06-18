@@ -256,6 +256,8 @@ class DemoBusinessSeeder extends Seeder
                         'branch_id' => $branch->id,
                         'wifi_package_id' => $selectedPackage->id,
                         'name' => $faker->name(),
+                        'ftth_account_name' => sprintf('FTTH %s %04d', $branchCode, $position),
+                        'ftth_id' => sprintf('FTTH-%s-%05d', $branchCode, $position),
                         'phone' => '09'.str_pad((string) (420000000 + $counter), 9, '0', STR_PAD_LEFT),
                         'nrc' => sprintf('%d/%s(N)%06d', rand(1, 14), strtoupper($faker->lexify('???')), rand(100000, 999999)),
                         'address' => $faker->streetAddress().', '.$branch->name,

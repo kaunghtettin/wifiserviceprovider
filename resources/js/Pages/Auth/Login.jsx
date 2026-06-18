@@ -107,19 +107,19 @@ export default function Login({ status, canResetPassword }) {
                                             width: 48,
                                             height: 48,
                                             borderRadius: 2,
-                                            bgcolor: 'rgba(255, 255, 255, 0.08)',
-                                            border: '1px solid rgba(148, 163, 184, 0.18)',
+                                            bgcolor: '#ffffff',
+                                            border: '1px solid rgba(255, 255, 255, 0.75)',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                         }}
                                     >
-                                        <Box component="img" src={logoSrc} alt="Logo" sx={{ width: 30, height: 30 }} />
+                                        <Box component="img" src={logoSrc} alt="Super Excellent Wifi Solutions" sx={{ width: 30, height: 30 }} />
                                     </Box>
-                                    <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
-                                        Super
-                                        <Typography component="span" sx={{ display: 'block', color: 'rgba(226, 232, 240, 0.76)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.01em' }}>
-                                            Excellent Wifi Service
+                                    <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0 }}>
+                                        Super Excellent
+                                        <Typography component="span" sx={{ display: 'block', color: 'rgba(226, 232, 240, 0.76)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: 0 }}>
+                                            Wifi Solutions
                                         </Typography>
                                     </Typography>
                                 </Stack>
@@ -222,22 +222,22 @@ export default function Login({ status, canResetPassword }) {
                                                     width: 42,
                                                     height: 42,
                                                     borderRadius: 2.25,
-                                                    bgcolor: 'rgba(255, 255, 255, 0.11)',
-                                                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                                                    bgcolor: '#ffffff',
+                                                    border: '1px solid rgba(255, 255, 255, 0.75)',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     boxShadow: '0 8px 18px rgba(2, 6, 23, 0.18)',
                                                 }}
                                             >
-                                                <Box component="img" src={logoSrc} alt="Logo" sx={{ width: 25, height: 25 }} />
+                                                <Box component="img" src={logoSrc} alt="Super Excellent Wifi Solutions" sx={{ width: 25, height: 25 }} />
                                             </Box>
                                             <Box>
                                                 <Typography sx={{ color: 'white', fontSize: '0.9rem', fontWeight: 800, lineHeight: 1.15 }}>
-                                                    Super
+                                                    Super Excellent
                                                 </Typography>
                                                 <Typography sx={{ color: 'rgba(226, 232, 240, 0.76)', fontSize: '0.66rem', fontWeight: 700 }}>
-                                                    Excellent Wifi Service
+                                                    Wifi Solutions
                                                 </Typography>
                                             </Box>
                                         </Stack>
@@ -262,10 +262,10 @@ export default function Login({ status, canResetPassword }) {
                                     </Stack>
 
                                     <Stack spacing={0.8} sx={{ mb: 2 }}>
-                                        <Typography sx={{ color: 'rgba(191, 219, 254, 0.9)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                                        <Typography sx={{ color: 'rgba(191, 219, 254, 0.9)', fontSize: '0.68rem', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase' }}>
                                             Staff workspace
                                         </Typography>
-                                        <Typography sx={{ color: 'white', fontSize: { xs: '1.7rem', sm: '2rem' }, fontWeight: 850, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
+                                        <Typography sx={{ color: 'white', fontSize: { xs: '1.7rem', sm: '2rem' }, fontWeight: 850, letterSpacing: 0, lineHeight: 1.05 }}>
                                             Run your network
                                             <br />
                                             with clarity.
@@ -317,7 +317,7 @@ export default function Login({ status, canResetPassword }) {
                                 }}
                             >
                                 <Stack spacing={0.5} sx={{ mb: 2.5 }}>
-                                    <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
+                                    <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: 0 }}>
                                         {isMobile ? 'Welcome back' : 'Sign in'}
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">

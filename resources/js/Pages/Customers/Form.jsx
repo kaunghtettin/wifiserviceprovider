@@ -23,6 +23,8 @@ const buildInitial = (customer, canAssignBranch, defaultBranchId) => ({
     branch_id: canAssignBranch ? customer?.branch_id ?? '' : defaultBranchId ?? '',
     wifi_package_id: customer?.wifi_package_id ?? '',
     name: customer?.name ?? '',
+    ftth_account_name: customer?.ftth_account_name ?? '',
+    ftth_id: customer?.ftth_id ?? '',
     phone: customer?.phone ?? '',
     nrc: customer?.nrc ?? '',
     address: customer?.address ?? '',
@@ -151,6 +153,25 @@ export default function CustomerForm({ mode, customer, branches, packages, canAs
                                     onChange={(e) => setData('nrc', e.target.value)}
                                     error={!!errors.nrc}
                                     helperText={errors.nrc}
+                                    sx={{ flex: 1 }}
+                                />
+                            </Stack>
+
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+                                <TextField
+                                    label="FTTH Account Name"
+                                    value={data.ftth_account_name}
+                                    onChange={(e) => setData('ftth_account_name', e.target.value)}
+                                    error={!!errors.ftth_account_name}
+                                    helperText={errors.ftth_account_name}
+                                    sx={{ flex: 1 }}
+                                />
+                                <TextField
+                                    label="FTTH ID"
+                                    value={data.ftth_id}
+                                    onChange={(e) => setData('ftth_id', e.target.value)}
+                                    error={!!errors.ftth_id}
+                                    helperText={errors.ftth_id}
                                     sx={{ flex: 1 }}
                                 />
                             </Stack>

@@ -44,6 +44,8 @@ const emptyForm = {
     branch_id: '',
     wifi_package_id: '',
     name: '',
+    ftth_account_name: '',
+    ftth_id: '',
     phone: '',
     nrc: '',
     address: '',
@@ -282,7 +284,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 <TextField
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Customer, phone, or code"
+                                    placeholder="Customer, phone, code, or FTTH"
                                     size="small"
                                     fullWidth
                                     onKeyDown={(e) => {
@@ -461,6 +463,17 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                             </Box>
                                             <Box sx={{ gridColumn: '1 / -1' }}>
                                                 <Typography variant="caption" color="text.secondary">
+                                                    FTTH
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 650 }} noWrap title={c.ftth_account_name || '-'}>
+                                                    {c.ftth_account_name || '-'}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary" noWrap title={c.ftth_id || '-'}>
+                                                    {c.ftth_id || '-'}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ gridColumn: '1 / -1' }}>
+                                                <Typography variant="caption" color="text.secondary">
                                                     Package
                                                 </Typography>
                                                 <Typography variant="body2" sx={{ fontWeight: 650 }}>
@@ -521,7 +534,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 size="small"
                                 stickyHeader
                                 sx={{
-                                    minWidth: 660,
+                                    minWidth: 820,
                                     tableLayout: 'fixed',
                                     '& .MuiTableCell-root': {
                                         px: 1,
@@ -538,6 +551,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>Customer</TableCell>
+                                        <TableCell sx={{ width: 150, minWidth: 150, maxWidth: 150 }}>FTTH</TableCell>
                                         <TableCell sx={{ width: 108, minWidth: 108, maxWidth: 108 }}>Phone</TableCell>
                                         <TableCell sx={{ width: 154, minWidth: 154, maxWidth: 154 }}>Package</TableCell>
                                         <TableCell sx={{ width: 92, minWidth: 92, maxWidth: 92 }}>Status</TableCell>
@@ -554,7 +568,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 <TableBody>
                                     {rows.map((c) => (
                                         <TableRow key={c.id} hover>
-                                            <TableCell sx={{ width: 160, minWidth: 160, maxWidth: 160 }}>
+                                            <TableCell sx={{ width: 150, minWidth: 150, maxWidth: 150 }}>
                                                 <Box
                                                     component="button"
                                                     type="button"
@@ -592,6 +606,24 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                                     title={c.customer_code || '-'}
                                                 >
                                                     {c.customer_code || '-'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ width: 150, minWidth: 150, maxWidth: 150 }}>
+                                                <Typography
+                                                    sx={{ fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.2 }}
+                                                    noWrap
+                                                    title={c.ftth_account_name || '-'}
+                                                >
+                                                    {c.ftth_account_name || '-'}
+                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{ fontFamily: 'monospace', fontSize: '0.76rem', lineHeight: 1.2 }}
+                                                    noWrap
+                                                    title={c.ftth_id || '-'}
+                                                >
+                                                    {c.ftth_id || '-'}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell sx={{ width: 108, minWidth: 108, maxWidth: 108 }}>
@@ -755,6 +787,24 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     onChange={(e) => setData('nrc', e.target.value)}
                                     error={!!errors.nrc}
                                     helperText={errors.nrc}
+                                    sx={{ flex: 1 }}
+                                />
+                                </Stack>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 2 }}>
+                                <TextField
+                                    label="FTTH Account Name"
+                                    value={data.ftth_account_name}
+                                    onChange={(e) => setData('ftth_account_name', e.target.value)}
+                                    error={!!errors.ftth_account_name}
+                                    helperText={errors.ftth_account_name}
+                                    sx={{ flex: 1 }}
+                                />
+                                <TextField
+                                    label="FTTH ID"
+                                    value={data.ftth_id}
+                                    onChange={(e) => setData('ftth_id', e.target.value)}
+                                    error={!!errors.ftth_id}
+                                    helperText={errors.ftth_id}
                                     sx={{ flex: 1 }}
                                 />
                                 </Stack>

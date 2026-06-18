@@ -14,6 +14,8 @@ return new class extends Migration
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignId('wifi_package_id')->nullable()->constrained('wifi_packages')->nullOnDelete();
             $table->string('name');
+            $table->string('ftth_account_name')->nullable();
+            $table->string('ftth_id', 128)->nullable();
             $table->string('phone');
             $table->string('nrc')->nullable();
             $table->text('address')->nullable();
@@ -31,6 +33,7 @@ return new class extends Migration
             $table->index('wifi_package_id');
             $table->index('status');
             $table->index('phone');
+            $table->index('ftth_id');
             $table->index('billing_day_of_month');
         });
     }

@@ -17,6 +17,8 @@ class Customer extends Model
         'branch_id',
         'wifi_package_id',
         'name',
+        'ftth_account_name',
+        'ftth_id',
         'phone',
         'nrc',
         'address',

@@ -30,7 +30,7 @@ export default function InvoicePrint({ invoice }) {
                 <Stack direction="row" justifyContent="space-between" spacing={2}>
                     <Box>
                         <Typography variant="h5" sx={{ fontWeight: 850 }}>
-                            {invoice.branch?.name || 'Super (Excellent Wifi Service)'}
+                            {invoice.branch?.name || 'Super Excellent Wifi Solutions'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                             {invoice.branch?.address || 'Branch address not available'}

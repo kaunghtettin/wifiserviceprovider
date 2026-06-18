@@ -178,7 +178,7 @@ export default function CustomerShow({
                 <PageHeader
                     eyebrow="Subscribers"
                     title={customer?.name || 'Customer detail'}
-                    description={`${customer?.customer_code || '-'} | ${customer?.branch?.name || 'No branch'} | Billing day ${customer?.billing_day_of_month || '-'}`}
+                    description={`${customer?.customer_code || '-'} | ${customer?.ftth_id || 'No FTTH ID'} | ${customer?.branch?.name || 'No branch'} | Billing day ${customer?.billing_day_of_month || '-'}`}
                     actions={
                         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                             <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => router.get(`${admin_app_url}/customers`)}>
@@ -241,6 +241,8 @@ export default function CustomerShow({
                             <Divider />
                             <Stack spacing={1}>
                                 <InfoRow label="Customer code" value={customer?.customer_code} />
+                                <InfoRow label="FTTH account name" value={customer?.ftth_account_name} />
+                                <InfoRow label="FTTH ID" value={customer?.ftth_id} />
                                 <InfoRow label="Phone" value={customer?.phone} />
                                 <InfoRow label="NRC" value={customer?.nrc} />
                                 <InfoRow label="Address" value={customer?.address} />
