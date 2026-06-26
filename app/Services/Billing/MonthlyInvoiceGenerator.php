@@ -8,6 +8,8 @@ use App\Models\Invoice;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class MonthlyInvoiceGenerator
 {
@@ -40,6 +42,94 @@ class MonthlyInvoiceGenerator
         return [
             'invoice' => $invoice,
             'created' => $invoice->wasRecentlyCreated,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     combination_id: string|null,
+     *     start_month: string,
+     *     end_month: string,
+     *     requested_count: int,
+     *     created_count: int,
+     *     reused_count: int,
+     *     invoices: array<int, Invoice>
+     * }
+     */
+    public function generateForCustomerMonths(Customer $customer, Carbon $startMonth, int $monthCount, ?User $actor = null): array
+    {
+        $customer->loadMissing('package:id,name,price');
+        $requestedCount = max(1, min(36, $monthCount));
+        $normalizedStart = $startMonth->copy()->startOfMonth();
+        $months = collect(range(0, $requestedCount - 1))
+            ->map(fn (int $offset) => $normalizedStart->copy()->addMonthsNoOverflow($offset)->startOfMonth());
+
+        $monthStrings = $months->map(fn (Carbon $month) => $month->toDateString())->all();
+        $existingCombinationIds = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('invoice_month', $monthStrings)
+            ->whereNotNull('combination_id')
+            ->distinct()
+            ->pluck('combination_id')
+            ->values()
+            ->all();
+
+        if (!empty($existingCombinationIds)) {
+            throw ValidationException::withMessages([
+                'start_month' => 'One or more selected months already belong to a combined invoice.',
+            ]);
+        }
+
+        $combinationId = $requestedCount > 1 ? (string) Str::uuid() : null;
+        $createdCount = 0;
+        $reusedCount = 0;
+
+        $invoices = DB::transaction(function () use ($customer, $months, $actor, $combinationId, &$createdCount, &$reusedCount) {
+            return $months->map(function (Carbon $month) use ($customer, $actor, $combinationId, &$createdCount, &$reusedCount) {
+                $invoice = $this->createCustomerInvoice($customer, $month, $actor, $combinationId);
+
+                if ($invoice->wasRecentlyCreated) {
+                    $createdCount++;
+
+                    return $invoice;
+                }
+
+                $reusedCount++;
+
+                if ($combinationId && !$invoice->combination_id) {
+                    $invoice->forceFill(['combination_id' => $combinationId])->save();
+                }
+
+                return $invoice->refresh();
+            })->all();
+        });
+
+        ActivityLog::create([
+            'branch_id' => $customer->branch_id,
+            'actor_user_id' => $actor?->id,
+            'entity_type' => 'invoice_combination',
+            'entity_id' => $invoices[0]->id ?? null,
+            'action' => 'generate_customer_invoice_combination',
+            'metadata' => [
+                'customer_id' => $customer->id,
+                'combination_id' => $combinationId,
+                'start_month' => $normalizedStart->toDateString(),
+                'end_month' => $months->last()->toDateString(),
+                'requested_count' => $requestedCount,
+                'created_count' => $createdCount,
+                'reused_count' => $reusedCount,
+            ],
+            'created_at' => now(),
+        ]);
+
+        return [
+            'combination_id' => $combinationId,
+            'start_month' => $normalizedStart->toDateString(),
+            'end_month' => $months->last()->toDateString(),
+            'requested_count' => $requestedCount,
+            'created_count' => $createdCount,
+            'reused_count' => $reusedCount,
+            'invoices' => $invoices,
         ];
     }
 
@@ -123,7 +213,7 @@ class MonthlyInvoiceGenerator
         ];
     }
 
-    private function createCustomerInvoice(Customer $customer, Carbon $normalizedMonth, ?User $actor): Invoice
+    private function createCustomerInvoice(Customer $customer, Carbon $normalizedMonth, ?User $actor, ?string $combinationId = null): Invoice
     {
         $billingDay = max(1, min(31, (int) $customer->billing_day_of_month));
         $dueDate = $normalizedMonth->copy()->day(min($billingDay, $normalizedMonth->daysInMonth));
@@ -141,6 +231,7 @@ class MonthlyInvoiceGenerator
 
         return Invoice::create([
             'customer_id' => $customer->id,
+            'combination_id' => $combinationId,
             'invoice_month' => $invoiceMonth,
             'branch_id' => $customer->branch_id,
             'wifi_package_id' => $customer->wifi_package_id,

@@ -86,6 +86,9 @@ class CustomerController extends Controller
         $status = trim((string) $request->query('status', ''));
         $branchId = (int) $request->query('branch_id', 0);
         $packageId = (int) $request->query('package_id', 0);
+        $billingDay = (int) $request->query('billing_day', 0);
+        $installationDate = trim((string) $request->query('installation_date', ''));
+        $installationDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $installationDate) ? $installationDate : '';
         $perPage = max(10, min((int) $request->query('per_page', 15), 100));
         $canViewAllBranches = $this->canViewAllBranches($request);
         $userBranchIds = $user?->accessibleBranchIds() ?? [];
@@ -117,6 +120,14 @@ class CustomerController extends Controller
 
         if ($packageId > 0) {
             $customersQuery->where('wifi_package_id', $packageId);
+        }
+
+        if ($billingDay >= 1 && $billingDay <= 31) {
+            $customersQuery->where('billing_day_of_month', $billingDay);
+        }
+
+        if ($installationDate !== '') {
+            $customersQuery->whereDate('installation_date', $installationDate);
         }
 
         $summaryQuery = clone $customersQuery;
@@ -159,6 +170,8 @@ class CustomerController extends Controller
                 'status' => in_array($status, self::FILTERABLE_STATUSES, true) ? $status : '',
                 'branch_id' => $canViewAllBranches && $branchId > 0 ? $branchId : '',
                 'package_id' => $packageId > 0 ? $packageId : '',
+                'billing_day' => $billingDay >= 1 && $billingDay <= 31 ? $billingDay : '',
+                'installation_date' => $installationDate,
                 'per_page' => $perPage,
             ],
         ]);
@@ -184,6 +197,7 @@ class CustomerController extends Controller
                 [
                 'id',
                 'invoice_number',
+                'combination_id',
                 'invoice_month',
                 'due_date',
                 'package_name',
@@ -374,7 +388,9 @@ class CustomerController extends Controller
             ->load('package:id,name,price');
 
         $data = $request->validate([
-            'month' => ['required', 'date_format:Y-m'],
+            'month' => ['nullable', 'required_without:start_month', 'date_format:Y-m'],
+            'start_month' => ['nullable', 'required_without:month', 'date_format:Y-m'],
+            'month_count' => ['nullable', 'integer', 'min:1', 'max:36'],
         ]);
 
         if ($customer->status !== 'active') {
@@ -389,17 +405,36 @@ class CustomerController extends Controller
             ]);
         }
 
-        $result = $this->invoiceGenerator->generateForCustomer(
+        $startMonth = Carbon::createFromFormat('Y-m', $data['start_month'] ?? $data['month'])->startOfMonth();
+        $monthCount = (int) ($data['month_count'] ?? 1);
+
+        if ($monthCount === 1) {
+            $result = $this->invoiceGenerator->generateForCustomer(
+                $customer,
+                $startMonth,
+                $request->user(),
+            );
+
+            if (!$result['created']) {
+                return back()->with('warning', 'An invoice already exists for this customer and month.');
+            }
+
+            return back()->with('success', 'Customer invoice generated successfully.');
+        }
+
+        $result = $this->invoiceGenerator->generateForCustomerMonths(
             $customer,
-            Carbon::createFromFormat('Y-m', $data['month'])->startOfMonth(),
+            $startMonth,
+            $monthCount,
             $request->user(),
         );
 
-        if (!$result['created']) {
-            return back()->with('warning', 'An invoice already exists for this customer and month.');
+        $message = "{$result['created_count']} invoice(s) generated for {$result['requested_count']} month(s).";
+        if ($result['reused_count'] > 0) {
+            $message .= " {$result['reused_count']} existing invoice(s) reused for the combined print.";
         }
 
-        return back()->with('success', 'Customer invoice generated successfully.');
+        return back()->with($result['created_count'] > 0 ? 'success' : 'warning', $message);
     }
 
     public function recordPayment(Request $request, Customer $customer): RedirectResponse

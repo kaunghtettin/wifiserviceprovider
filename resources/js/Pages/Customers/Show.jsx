@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import {
     Box,
     Button,
+    Chip,
     CircularProgress,
     Dialog,
     DialogActions,
@@ -61,6 +62,20 @@ const formatMonth = (value) =>
         : '-';
 
 const formatMethod = (value) => String(value || '-').replace(/_/g, ' ');
+const monthOptions = [
+    ['01', 'January'],
+    ['02', 'February'],
+    ['03', 'March'],
+    ['04', 'April'],
+    ['05', 'May'],
+    ['06', 'June'],
+    ['07', 'July'],
+    ['08', 'August'],
+    ['09', 'September'],
+    ['10', 'October'],
+    ['11', 'November'],
+    ['12', 'December'],
+];
 
 const InfoRow = ({ label, value }) => (
     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -91,8 +106,10 @@ export default function CustomerShow({
     const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
     const invoiceForm = useForm({
-        month: new Date().toISOString().slice(0, 7),
+        start_month: new Date().toISOString().slice(0, 7),
+        month_count: 1,
     });
+    const currentYear = new Date().getFullYear();
     const paymentForm = useForm({
         invoice_id: '',
         amount: '',
@@ -105,6 +122,27 @@ export default function CustomerShow({
         () => invoiceOptions.find((invoice) => String(invoice.id) === String(paymentForm.data.invoice_id)) || null,
         [invoiceOptions, paymentForm.data.invoice_id],
     );
+    const invoiceMonthCount = Math.max(1, Number(invoiceForm.data.month_count || 1));
+    const invoicePreviewTotal = invoiceMonthCount * Number(customer?.package?.price || 0);
+    const [selectedInvoiceYear, selectedInvoiceMonth] = String(invoiceForm.data.start_month || '').split('-');
+    const invoiceYearOptions = useMemo(() => {
+        const years = Array.from({ length: 8 }, (_, index) => currentYear - 2 + index);
+        const selectedYear = Number(selectedInvoiceYear);
+
+        if (Number.isFinite(selectedYear) && !years.includes(selectedYear)) {
+            years.push(selectedYear);
+        }
+
+        return years.sort((first, second) => first - second);
+    }, [currentYear, selectedInvoiceYear]);
+
+    const setInvoiceStartMonth = (part, value) => {
+        const fallback = new Date().toISOString().slice(0, 7).split('-');
+        const year = part === 'year' ? String(value) : selectedInvoiceYear || fallback[0];
+        const month = part === 'month' ? String(value).padStart(2, '0') : selectedInvoiceMonth || fallback[1];
+
+        invoiceForm.setData('start_month', `${year}-${month}`);
+    };
 
     const closeInvoiceDialog = () => {
         setInvoiceDialogOpen(false);
@@ -398,7 +436,10 @@ export default function CustomerShow({
                                     {invoiceRows.map((invoice) => (
                                         <TableRow key={invoice.id} hover>
                                             <TableCell>
-                                                <Typography sx={{ fontWeight: 700 }}>{invoice.invoice_number || '-'}</Typography>
+                                                <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+                                                    <Typography sx={{ fontWeight: 700 }}>{invoice.invoice_number || '-'}</Typography>
+                                                    {invoice.combination_id ? <Chip size="small" label="Combined print" variant="outlined" /> : null}
+                                                </Stack>
                                                 <Typography variant="body2" color="text.secondary">
                                                     {invoice.package_name || '-'}
                                                 </Typography>
@@ -439,7 +480,7 @@ export default function CustomerShow({
                                                         size="small"
                                                         startIcon={<PrintIcon fontSize="small" />}
                                                     >
-                                                        Print
+                                                        {invoice.combination_id ? 'Print Group' : 'Print'}
                                                     </Button>
                                                 </TableCell>
                                             ) : null}
@@ -465,25 +506,84 @@ export default function CustomerShow({
                     />
                 </TableCard>
 
-                <Dialog open={invoiceDialogOpen} onClose={closeInvoiceDialog} fullWidth maxWidth="xs">
+                <Dialog open={invoiceDialogOpen} onClose={closeInvoiceDialog} fullWidth maxWidth="sm">
                     <Box component="form" onSubmit={submitInvoice}>
                         <DialogTitle>Generate Customer Invoice</DialogTitle>
                         <DialogContent>
                             <Stack spacing={2} sx={{ pt: 1 }}>
                                 <Typography variant="body2" color="text.secondary">
-                                    Generate one invoice for {customer?.name}. Other customers are not affected.
+                                    Generate monthly invoices for {customer?.name}. Existing invoices in the selected range will be reused.
                                 </Typography>
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gap: 1,
+                                        gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 0.85fr) minmax(0, 1.15fr)' },
+                                    }}
+                                >
+                                    <TextField
+                                        select
+                                        label="Start year"
+                                        value={selectedInvoiceYear || String(currentYear)}
+                                        onChange={(event) => setInvoiceStartMonth('year', event.target.value)}
+                                        error={Boolean(invoiceForm.errors.start_month || invoiceForm.errors.month)}
+                                        required
+                                        fullWidth
+                                    >
+                                        {invoiceYearOptions.map((year) => (
+                                            <MenuItem key={year} value={String(year)}>
+                                                {year}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        select
+                                        label="Start month"
+                                        value={selectedInvoiceMonth || new Date().toISOString().slice(5, 7)}
+                                        onChange={(event) => setInvoiceStartMonth('month', event.target.value)}
+                                        error={Boolean(invoiceForm.errors.start_month || invoiceForm.errors.month)}
+                                        helperText={invoiceForm.errors.start_month || invoiceForm.errors.month}
+                                        required
+                                        fullWidth
+                                    >
+                                        {monthOptions.map(([value, label]) => (
+                                            <MenuItem key={value} value={value}>
+                                                {label}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Box>
                                 <TextField
-                                    type="month"
-                                    label="Invoice month"
-                                    value={invoiceForm.data.month}
-                                    onChange={(event) => invoiceForm.setData('month', event.target.value)}
-                                    error={Boolean(invoiceForm.errors.month)}
-                                    helperText={invoiceForm.errors.month}
-                                    slotProps={{ inputLabel: { shrink: true } }}
+                                    type="number"
+                                    label="Number of months"
+                                    value={invoiceForm.data.month_count}
+                                    onChange={(event) => invoiceForm.setData('month_count', event.target.value)}
+                                    error={Boolean(invoiceForm.errors.month_count)}
+                                    helperText={invoiceForm.errors.month_count || 'Use 1 for a normal invoice, or more for a combined print.'}
+                                    inputProps={{ min: 1, max: 36, step: 1 }}
                                     required
                                     fullWidth
                                 />
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gap: 1,
+                                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                                    }}
+                                >
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Months
+                                        </Typography>
+                                        <Typography sx={{ fontWeight: 760 }}>{invoiceMonthCount}</Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Estimated total
+                                        </Typography>
+                                        <Typography sx={{ fontWeight: 760 }}>{formatCurrency(invoicePreviewTotal)}</Typography>
+                                    </Box>
+                                </Box>
                             </Stack>
                         </DialogContent>
                         <DialogActions>

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WifiPackage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CustomerBillingAccessTest extends TestCase
@@ -67,6 +68,123 @@ class CustomerBillingAccessTest extends TestCase
             ->assertSessionHas('warning');
 
         $this->assertDatabaseCount('invoices', 1);
+    }
+
+    public function test_customer_staff_can_generate_combined_invoices_without_duplicating_existing_months(): void
+    {
+        [$user, $branch] = $this->createCustomerStaff();
+        $customer = $this->createCustomer($branch, 'Combined Customer');
+        $existingInvoice = $this->createInvoice($customer);
+
+        $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->post(route('admin.customers.invoices.store', $customer), [
+                'start_month' => '2026-06',
+                'month_count' => 3,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('invoices', 3);
+
+        $invoices = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->orderBy('invoice_month')
+            ->get();
+
+        $this->assertSame(['2026-06-01', '2026-07-01', '2026-08-01'], $invoices->map(
+            fn (Invoice $invoice) => $invoice->invoice_month->toDateString()
+        )->all());
+        $this->assertNotNull($existingInvoice->fresh()->combination_id);
+        $this->assertCount(1, $invoices->pluck('combination_id')->unique()->all());
+    }
+
+    public function test_combined_invoice_print_uses_group_period_and_summed_amounts(): void
+    {
+        [$user, $branch] = $this->createCustomerStaff(['customers.manage', 'invoices.manage']);
+        $customer = $this->createCustomer($branch, 'Print Combined Customer');
+
+        $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->post(route('admin.customers.invoices.store', $customer), [
+                'start_month' => '2026-06',
+                'month_count' => 2,
+            ]);
+
+        $invoice = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->whereDate('invoice_month', '2026-06-01')
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->get(route('admin.invoices.print', $invoice));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Invoices/Print')
+            ->where('invoice.period_start_month', '2026-06-01')
+            ->where('invoice.period_end_month', '2026-07-01')
+            ->where('invoice.total_amount', 70000)
+            ->where('invoice.paid_amount', 0)
+            ->where('invoice.balance_amount', 70000)
+            ->where('invoice.combined_invoice_count', 2)
+        );
+    }
+
+    public function test_customer_index_can_filter_by_billing_day_and_installation_date(): void
+    {
+        [$user, $branch] = $this->createCustomerStaff();
+        $matchedCustomer = $this->createCustomer($branch, 'Matched Customer');
+        $matchedCustomer->update([
+            'billing_day_of_month' => 15,
+            'installation_date' => '2026-06-15',
+        ]);
+
+        $this->createCustomer($branch, 'Different Billing Day')->update([
+            'billing_day_of_month' => 7,
+            'installation_date' => '2026-06-15',
+        ]);
+        $this->createCustomer($branch, 'Different Install Date')->update([
+            'billing_day_of_month' => 15,
+            'installation_date' => '2026-06-16',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->get(route('admin.customers.index', [
+                'billing_day' => 15,
+                'installation_date' => '2026-06-15',
+            ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Customers/Index')
+            ->where('filters.billing_day', 15)
+            ->where('filters.installation_date', '2026-06-15')
+            ->has('customers.data', 1)
+            ->where('customers.data.0.name', 'Matched Customer')
+        );
+    }
+
+    public function test_customer_index_can_search_by_ftth_name(): void
+    {
+        [$user, $branch] = $this->createCustomerStaff();
+        $matchedCustomer = $this->createCustomer($branch, 'FTTH Search Customer');
+        $matchedCustomer->update(['ftth_account_name' => 'Special FTTH Account']);
+        $this->createCustomer($branch, 'Other Customer')->update(['ftth_account_name' => 'Regular Account']);
+
+        $response = $this->actingAs($user)
+            ->withSession(['workspace' => 'branch', 'active_branch_id' => $branch->id])
+            ->get(route('admin.customers.index', ['q' => 'Special FTTH']));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Customers/Index')
+            ->where('filters.q', 'Special FTTH')
+            ->has('customers.data', 1)
+            ->where('customers.data.0.name', 'FTTH Search Customer')
+        );
     }
 
     public function test_customer_staff_cannot_generate_an_invoice_for_an_unassigned_branch(): void
@@ -138,17 +256,17 @@ class CustomerBillingAccessTest extends TestCase
     /**
      * @return array{User, Branch}
      */
-    private function createCustomerStaff(): array
+    private function createCustomerStaff(array $permissionKeys = ['customers.manage']): array
     {
-        $permission = Permission::create([
-            'key' => 'customers.manage',
-            'description' => 'Manage customers',
-        ]);
+        $permissions = collect($permissionKeys)->map(fn (string $key) => Permission::create([
+            'key' => $key,
+            'description' => 'Manage '.str_replace('.', ' ', $key),
+        ]));
         $role = Role::create([
             'name' => 'customer_staff',
             'description' => 'Customer staff',
         ]);
-        $role->permissions()->sync([$permission->id]);
+        $role->permissions()->sync($permissions->pluck('id')->all());
 
         $branch = Branch::create(['name' => 'Yangon', 'code' => 'YGN']);
         $user = User::factory()->create([

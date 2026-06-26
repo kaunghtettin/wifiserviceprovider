@@ -151,14 +151,69 @@ class InvoiceController extends Controller
         $invoice = $this->findScopedInvoice($request, $invoice->id)
             ->load([
                 'branch:id,name,code,phone,address',
-                'customer:id,name,customer_code,phone,address,router_sn,billing_day_of_month',
+                'customer:id,name,customer_code,ftth_account_name,ftth_id,phone,address,router_sn,billing_day_of_month',
                 'generatedBy:id,name',
                 'payments:id,invoice_id,payment_code,amount,paid_at,method,reference_no',
             ]);
 
         return Inertia::render('Invoices/Print', [
-            'invoice' => $invoice,
+            'invoice' => $this->printPayload($request, $invoice),
         ]);
+    }
+
+    private function printPayload(Request $request, Invoice $invoice): array
+    {
+        if (!$invoice->combination_id) {
+            $payload = $invoice->toArray();
+            $payload['period_start_month'] = $invoice->invoice_month?->toDateString();
+            $payload['period_end_month'] = $invoice->invoice_month?->toDateString();
+
+            return $payload;
+        }
+
+        $user = $request->user();
+        $combinedInvoices = Invoice::query()
+            ->with([
+                'payments:id,invoice_id,payment_code,amount,paid_at,method,reference_no',
+            ])
+            ->where('customer_id', $invoice->customer_id)
+            ->where('combination_id', $invoice->combination_id)
+            ->when(
+                !$user?->canViewAllBranches(),
+                fn (Builder $query) => $query->whereIn('branch_id', $user?->accessibleBranchIds() ?? [])
+            )
+            ->orderBy('invoice_month')
+            ->orderBy('id')
+            ->get();
+
+        if ($combinedInvoices->count() <= 1) {
+            $payload = $invoice->toArray();
+            $payload['period_start_month'] = $invoice->invoice_month?->toDateString();
+            $payload['period_end_month'] = $invoice->invoice_month?->toDateString();
+
+            return $payload;
+        }
+
+        $firstInvoice = $combinedInvoices->first();
+        $lastInvoice = $combinedInvoices->last();
+        $payload = $invoice->toArray();
+
+        $payload['invoice_month'] = $firstInvoice->invoice_month?->toDateString();
+        $payload['period_start_month'] = $firstInvoice->invoice_month?->toDateString();
+        $payload['period_end_month'] = $lastInvoice->invoice_month?->toDateString();
+        $payload['due_date'] = $combinedInvoices->max(fn (Invoice $item) => $item->due_date?->toDateString());
+        $payload['total_amount'] = $combinedInvoices->sum(fn (Invoice $item) => (float) $item->total_amount);
+        $payload['paid_amount'] = $combinedInvoices->sum(fn (Invoice $item) => (float) $item->paid_amount);
+        $payload['balance_amount'] = $combinedInvoices->sum(fn (Invoice $item) => (float) $item->balance_amount);
+        $payload['combined_invoice_count'] = $combinedInvoices->count();
+        $payload['payments'] = $combinedInvoices
+            ->flatMap(fn (Invoice $item) => $item->payments)
+            ->sortByDesc('paid_at')
+            ->values()
+            ->map(fn ($payment) => $payment->toArray())
+            ->all();
+
+        return $payload;
     }
 
     private function findScopedInvoice(Request $request, int $invoiceId): Invoice

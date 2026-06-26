@@ -87,6 +87,8 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
     const [statusFilter, setStatusFilter] = useState(filters?.status || '');
     const [branchFilter, setBranchFilter] = useState(filters?.branch_id || '');
     const [packageFilter, setPackageFilter] = useState(filters?.package_id || '');
+    const [billingDayFilter, setBillingDayFilter] = useState(filters?.billing_day || '');
+    const [installationDateFilter, setInstallationDateFilter] = useState(filters?.installation_date || '');
     const perPage = Number(filters?.per_page || customers?.per_page || 15);
 
     const rows = useMemo(() => customers?.data || [], [customers]);
@@ -180,6 +182,8 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                 status: statusFilter || '',
                 branch_id: canFilterBranch ? branchFilter || '' : '',
                 package_id: packageFilter || '',
+                billing_day: billingDayFilter || '',
+                installation_date: installationDateFilter || '',
                 per_page: perPage,
             },
             { preserveState: true, preserveScroll: true, replace: true },
@@ -191,6 +195,8 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
         setStatusFilter('');
         setBranchFilter('');
         setPackageFilter('');
+        setBillingDayFilter('');
+        setInstallationDateFilter('');
         router.get(
             `${admin_app_url}/customers`,
             { per_page: perPage },
@@ -270,12 +276,11 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 gap: 1.25,
                                 gridTemplateColumns: {
                                     xs: '1fr',
-                                    sm: canFilterBranch
-                                        ? 'minmax(220px, 1.6fr) minmax(140px, 1fr)'
-                                        : 'minmax(220px, 1.8fr) minmax(140px, 1fr)',
-                                    md: canFilterBranch
-                                        ? 'minmax(240px, 1.8fr) minmax(140px, 0.8fr) minmax(170px, 1fr) minmax(170px, 1fr) auto'
-                                        : 'minmax(260px, 2fr) minmax(150px, 0.85fr) minmax(170px, 1fr) auto',
+                                    sm: 'repeat(2, minmax(0, 1fr))',
+                                    lg: canFilterBranch ? 'repeat(4, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+                                    xl: canFilterBranch
+                                        ? 'minmax(260px, 1.8fr) minmax(130px, 0.75fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(120px, 0.7fr) minmax(160px, 0.9fr) auto'
+                                        : 'minmax(280px, 2fr) minmax(140px, 0.8fr) minmax(180px, 1fr) minmax(120px, 0.7fr) minmax(170px, 0.9fr) auto',
                                 },
                                 alignItems: 'start',
                             }}
@@ -287,7 +292,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 <TextField
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Customer, phone, code, FTTH ID, or address"
+                                    placeholder="Customer, FTTH name, FTTH ID, phone, code, or address"
                                     size="small"
                                     fullWidth
                                     onKeyDown={(e) => {
@@ -339,6 +344,36 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     ))}
                                 </TextField>
                             </Stack>
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Billing day
+                                </Typography>
+                                <TextField
+                                    type="number"
+                                    size="small"
+                                    value={billingDayFilter}
+                                    onChange={(e) => setBillingDayFilter(e.target.value)}
+                                    placeholder="1-31"
+                                    fullWidth
+                                    inputProps={{ min: 1, max: 31 }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') applySearch();
+                                    }}
+                                />
+                            </Stack>
+                            <Stack spacing={0.75}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
+                                    Installation date
+                                </Typography>
+                                <TextField
+                                    type="date"
+                                    size="small"
+                                    value={installationDateFilter}
+                                    onChange={(e) => setInstallationDateFilter(e.target.value)}
+                                    fullWidth
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Stack>
                             {canFilterBranch ? (
                                 <Stack spacing={0.75}>
                                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
@@ -364,11 +399,9 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                 spacing={0.75}
                                 sx={{
                                     minWidth: { md: 150 },
+                                    alignSelf: 'end',
                                 }}
                             >
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, px: 0.25 }}>
-                                    Actions
-                                </Typography>
                                 <Stack
                                     direction="row"
                                     spacing={1}
@@ -386,7 +419,7 @@ export default function CustomerIndex({ customers, summary, branches, packages, 
                                     >
                                         Apply
                                     </Button>
-                                    {query || statusFilter || branchFilter || packageFilter ? (
+                                    {query || statusFilter || branchFilter || packageFilter || billingDayFilter || installationDateFilter ? (
                                         <Button
                                             variant="text"
                                             color="inherit"
